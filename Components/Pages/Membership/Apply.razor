@@ -1,0 +1,141 @@
+﻿@page "/membership/apply"
+@using BafaMobile.Data
+@using BafaMobile.Models
+@using BafaMobile.Services
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject BafaDbContext DbContext
+@inject NavigationManager Navigation
+@using Microsoft.EntityFrameworkCore
+
+
+
+<h4 class="fw-bold text-center mb-1">Membership</h4>
+<p class="text-center text-muted">Join or renew your NYBAFA membership</p>
+
+<div class="d-flex justify-content-center mb-3">
+    <ul class="nav nav-tabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#">Apply/Renew</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link disabled" href="#">Benefits</a>
+        </li>
+    </ul>
+</div>
+
+<EditForm Model="membership" OnValidSubmit="SubmitApplication">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="card p-3 shadow-sm mx-auto" style="max-width: 500px">
+        <h5 class="fw-bold">Membership Application</h5>
+
+        <div class="row">
+            <div class="col">
+                <InputText class="form-control mb-2" @bind-Value="membership.FirstName" placeholder="First Name" />
+            </div>
+            <div class="col">
+                <InputText class="form-control mb-2" @bind-Value="membership.LastName" placeholder="Last Name" />
+            </div>
+        </div>
+
+        <InputText class="form-control mb-2" @bind-Value="membership.Email" placeholder="Email" />
+        <InputText class="form-control mb-2" @bind-Value="membership.Phone" placeholder="Phone" />
+        <InputText class="form-control mb-2" @bind-Value="membership.Address" placeholder="Address" />
+
+        <div class="row">
+            <div class="col">
+                <InputText class="form-control mb-2" @bind-Value="membership.City" placeholder="City" />
+            </div>
+            <div class="col">
+                <InputText class="form-control mb-2" @bind-Value="membership.State" placeholder="State" />
+            </div>
+        </div>
+
+        <InputText class="form-control mb-3" @bind-Value="membership.ZipCode" placeholder="ZIP Code" />
+        <InputText class="form-control mb-3" @bind-Value="membership.Year" placeholder="Membership Year" />
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Membership Type</label>
+            <InputSelect class="form-select" @bind-Value="membership.MembershipType">
+                <option value="">-- Select Type --</option>
+                <option value="Individual">Individual Membership ($20)</option>
+                <option value="Family">Family Membership ($30)</option>
+            </InputSelect>
+        </div>
+
+
+
+        <div class="form-check mb-3">
+            <InputCheckbox class="form-check-input" @bind-Value="membership.AgreedToTerms" />
+            <label class="form-check-label">
+                I agree to the terms and conditions and hereby digitally sign this application
+            </label>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Submit Application</button>
+        <div class="alert alert-info">
+            <strong>Payment Information</strong><br />
+            Membership Fee: @(membership.MembershipType == "Family" ? "$30" : "$20") for year 2025<br />
+            After submitting this form, you will be prompted to pay via PayPal or Zelle. Your membership will be activated after payment verification.
+        </div>
+
+
+    </div>
+</EditForm>
+
+@code {
+    private MembershipModel membership = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var currentUser = await UserSessionService.GetCurrentUserAsync();
+        if (currentUser != null)
+        {
+            membership.FirstName = currentUser.FirstName;
+            membership.LastName = currentUser.LastName;
+            membership.Email = currentUser.Email;
+            membership.City = currentUser.City;
+            membership.State = currentUser.State;
+            membership.UserId = currentUser.UserId;
+        }
+    }
+
+    private async Task SubmitApplication()
+    {
+        try
+        {
+            var newRecord = new MembershipModel
+                {
+                    FirstName = membership.FirstName,
+                    LastName = membership.LastName,
+                    Email = membership.Email,
+                    Phone = membership.Phone,
+                    Address = membership.Address,
+                    City = membership.City,
+                    State = membership.State,
+                    ZipCode = membership.ZipCode,
+                    MembershipType = membership.MembershipType,
+                    AgreedToTerms = membership.AgreedToTerms,
+                    SubmittedOn = DateTime.UtcNow,
+                    UserId = membership.UserId,
+                    Year = membership.Year,
+                    MembershipStatus = "Pending",
+   
+                };
+
+            DbContext.Memberships.Add(newRecord);
+            await DbContext.SaveChangesAsync();
+
+            Navigation.NavigateTo("/membership/confirm");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("Error saving membership: " + ex.Message);
+        }
+    }
+
+    
+
+ 
+}

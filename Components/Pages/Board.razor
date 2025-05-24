@@ -1,0 +1,100 @@
+@page "/board"
+@using BafaMobile.Models
+@using BafaMobile.Data
+@using Microsoft.EntityFrameworkCore
+@inject BafaDbContext DbContext
+
+<div class="container py-4">
+    <h2 class="text-center mb-4">Board of Directors</h2>
+
+    @if (boardYears.Any())
+    {
+        @foreach (var year in boardYears)
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">@year</h4>
+                </div>
+                <div class="card-body">
+                    @{
+                        var yearMembers = boardMembers.Where(b => b.Year == year).ToList();
+                        var regularMembers = yearMembers.Where(b => !b.IsAdvisor).OrderBy(b => b.Order ?? 99).ToList();
+                        var advisors = yearMembers.Where(b => b.IsAdvisor).OrderBy(b => b.Order ?? 99).ToList();
+                    }
+
+                    @if (regularMembers.Any())
+                    {
+                        <div class="row mb-4">
+                            @foreach (var member in regularMembers)
+                            {
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">@member.Name</h5>
+                                            <h6 class="card-subtitle mb-2 text-muted">@member.Role</h6>
+                                            @if (!string.IsNullOrWhiteSpace(member.Description))
+                                            {
+                                                <p class="card-text small">@member.Description</p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (advisors.Any())
+                    {
+                        <div class="mt-4">
+                            <h5 class="border-bottom pb-2">Advisors</h5>
+                            <div class="row">
+                                @foreach (var advisor in advisors)
+                                {
+                                    <div class="col-md-6 col-lg-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h5 class="card-title">@advisor.Name</h5>
+                                                <h6 class="card-subtitle mb-2 text-muted">@advisor.Role</h6>
+                                                @if (!string.IsNullOrWhiteSpace(advisor.Description))
+                                                {
+                                                    <p class="card-text small">@advisor.Description</p>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="alert alert-info">
+            No board members information available at this time.
+        </div>
+    }
+</div>
+
+@code {
+    private List<string> boardYears = new();
+    private List<BoardMember> boardMembers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get all years, ordered by most recent first
+        boardYears = await DbContext.BoardMembers
+            .Select(b => b.Year)
+            .Distinct()
+            .OrderByDescending(y => y)
+            .ToListAsync();
+
+        // Get all board members
+        boardMembers = await DbContext.BoardMembers
+            .OrderBy(b => b.IsAdvisor)
+            .ThenBy(b => b.Order ?? 99)
+            .ToListAsync();
+    }
+} 

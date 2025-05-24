@@ -1,0 +1,179 @@
+﻿@page "/donate"
+@using BafaMobile.Data
+@using BafaMobile.Models
+@using BafaMobile.Services
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject BafaDbContext DbContext
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@using Microsoft.EntityFrameworkCore
+
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="text-center mb-5">
+        <i class="bi bi-heart-fill text-danger display-4 mb-3"></i>
+        <h4 class="fw-bold mb-2">Support NYBAFA</h4>
+        <p class="text-muted">Your donation helps us continue our mission of serving the community</p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Donation Options Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-bold mb-4">Choose Your Donation Method</h5>
+
+                    <!-- PayPal Section -->
+                    <div class="mb-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-paypal text-primary fs-4 me-2"></i>
+                            <h6 class="mb-0">PayPal</h6>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="number" class="form-control" id="paypalAmount" placeholder="Amount" @bind="paypalAmount" min="1" step="1">
+                                    <label for="paypalAmount">Amount ($)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <button class="btn btn-primary w-100 h-100" @onclick="RedirectToPayPal">
+                                    <i class="bi bi-paypal me-2"></i>Donate with PayPal
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <!-- Zelle Section -->
+                    <div>
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-bank text-primary fs-4 me-2"></i>
+                            <h6 class="mb-0">Zelle</h6>
+                        </div>
+                        <div class="alert alert-light border mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-info-circle-fill text-primary me-2"></i>
+                                <strong>Zelle Information</strong>
+                            </div>
+                            <div class="d-flex align-items-center text-muted mb-1">
+                                <i class="bi bi-envelope me-2"></i>
+                                <span>Email: finance@nybafa.org</span>
+                            </div>
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-building me-2"></i>
+                                <span>Name: NYBAFA</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-primary w-100" @onclick="CopyZelleInfo">
+                            <i class="bi bi-clipboard me-2"></i>Copy Zelle Information
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Impact Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-bold mb-4">Your Impact</h5>
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="bi bi-people-fill text-primary display-6 mb-2"></i>
+                                <h6 class="fw-bold mb-1">Community</h6>
+                                <p class="text-muted small mb-0">Support local events and programs</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="bi bi-book-fill text-primary display-6 mb-2"></i>
+                                <h6 class="fw-bold mb-1">Education</h6>
+                                <p class="text-muted small mb-0">Fund educational initiatives</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="bi bi-heart-fill text-primary display-6 mb-2"></i>
+                                <h6 class="fw-bold mb-1">Support</h6>
+                                <p class="text-muted small mb-0">Help those in need</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help Section -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-bold mb-3">Need Help?</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-envelope-fill me-2"></i>
+                                <span>Email: support@nybafa.org</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-telephone-fill me-2"></i>
+                                <span>Phone: (555) 123-4567</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .form-floating > .form-control:focus {
+        box-shadow: none;
+        border-color: #0d6efd;
+    }
+</style>
+
+@code {
+    private decimal paypalAmount = 20;
+    private UserModel? user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserSessionService.GetCurrentUserAsync();
+    }
+
+    private async Task RedirectToPayPal()
+    {
+        if (paypalAmount <= 0)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please enter a valid donation amount.");
+            return;
+        }
+
+        string itemName = "NYBAFA Donation";
+        string amount = paypalAmount.ToString("0.00");
+        string returnUrl = Navigation.ToAbsoluteUri("/payment-success").ToString();
+        string cancelUrl = Navigation.ToAbsoluteUri("/payment-cancelled").ToString();
+
+        var paypalUrl = $"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=finance@nybafa.org&item_name={itemName}&amount={amount}&return={returnUrl}&cancel_return={cancelUrl}";
+        await JSRuntime.InvokeVoidAsync("window.open", paypalUrl, "_blank");
+    }
+
+    private async Task CopyZelleInfo()
+    {
+        var zelleInfo = "Email: finance@nybafa.org\nName: NYBAFA";
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", zelleInfo);
+        await JSRuntime.InvokeVoidAsync("alert", "Zelle information copied to clipboard!");
+    }
+}

@@ -1,0 +1,468 @@
+@page "/admin/admbd"
+@using BafaMobile.Models
+@using BafaMobile.Data
+@using Microsoft.EntityFrameworkCore
+@using System.ComponentModel.DataAnnotations
+@inject BafaDbContext DbContext
+@inject NavigationManager Navigation
+@using BafaMobile.Services
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<h4 class="fw-bold mt-3 text-center">Board of Directors Management</h4>
+
+<div class="card p-3 shadow-sm mb-4">
+    <div class="row g-3">
+        <div class="col-8 col-md-4">
+            <label class="form-label">Select Year</label>
+            <InputSelect class="form-select" @bind-Value="selectedYear" @onchange="OnYearChanged">
+                @foreach (var year in availableYears)
+                {
+                    <option value="@year">@year</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-4 col-md-2 align-self-end">
+            <button class="btn btn-primary w-100" @onclick="ShowAddYearModal">Add Year</button>
+        </div>
+        <div class="col-12 col-md-6 align-self-end text-end">
+            <button class="btn btn-success" @onclick="ShowAddModal">Add Board Member</button>
+        </div>
+    </div>
+</div>
+
+@if (boardMembers.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Advisor</th>
+                    <th>Order</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var member in boardMembers.OrderBy(m => m.IsAdvisor).ThenBy(m => m.Order ?? 99))
+                {
+                    <tr>
+                        <td>@member.Name</td>
+                        <td>@member.Role</td>
+                        <td>@(member.IsAdvisor ? "Yes" : "No")</td>
+                        <td>@member.Order</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditModal(member)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(member)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <p class="text-muted">No board members found for @selectedYear.</p>
+}
+
+<!-- Add/Edit Modal -->
+@if (showModal)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(editingMember.Id == 0 ? "Add Board Member" : "Edit Board Member")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="editingMember" OnValidSubmit="SaveMember">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        <div class="mb-2">
+                            <label>Name</label>
+                            <InputText class="form-control" @bind-Value="editingMember.Name" />
+                            <ValidationMessage For="@(() => editingMember.Name)" />
+                        </div>
+                        <div class="mb-2">
+                            <label>Role</label>
+                            <InputText class="form-control" @bind-Value="editingMember.Role" />
+                            <ValidationMessage For="@(() => editingMember.Role)" />
+                        </div>
+                        <div class="mb-2">
+                            <label>Order (for display)</label>
+                            <InputNumber class="form-control" @bind-Value="editingMember.Order" />
+                        </div>
+                        <div class="mb-2">
+                            <label><InputCheckbox @bind-Value="editingMember.IsAdvisor" /> Advisor</label>
+                        </div>
+                        <div class="mb-2">
+                            <label>Description</label>
+                            <InputTextArea class="form-control" @bind-Value="editingMember.Description" rows="2" />
+                        </div>
+                        <div class="text-end mt-3">
+                            <button type="submit" class="btn btn-success me-2" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <span> Saving...</span>
+                                }
+                                else
+                                {
+                                    <span>Save</span>
+                                }
+                            </button>
+                            <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSaving">Cancel</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @errorMessage
+        <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+    </div>
+}
+
+<!-- Add Year Modal -->
+@if (showYearModal)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Year</h5>
+                    <button type="button" class="btn-close" @onclick="CloseYearModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="newYear" OnValidSubmit="AddYear">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        <div class="mb-2">
+                            <label>Year (e.g. 2025-26)</label>
+                            <InputText class="form-control" @bind-Value="newYear.Value" />
+                        </div>
+                        <div class="text-end mt-3">
+                            <button type="submit" class="btn btn-success me-2">Add</button>
+                            <button type="button" class="btn btn-secondary" @onclick="CloseYearModal">Cancel</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<string> availableYears = new();
+    private string selectedYear = string.Empty;
+    private List<BoardMember> boardMembers = new();
+    private BoardMember editingMember = new() { Year = string.Empty };
+    private bool showModal = false;
+    private bool showYearModal = false;
+    private InputYear newYear = new();
+    private bool isInitialized = false;
+    private bool isSaving = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSessionService.GetCurrentUserAsync();
+        if (user?.Email != "admin@bafa.org")
+        {
+           // Navigation.NavigateTo("/", true);
+            Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            return;
+        }
+        await InitializeJsInterop();
+        await LoadYears();
+        if (availableYears.Any())
+        {
+            selectedYear = availableYears.First();
+            await LoadBoardMembers();
+        }
+    }
+
+    private async Task InitializeJsInterop()
+    {
+        try
+        {
+            if (!isInitialized)
+            {
+                var result = await JSRuntime.InvokeAsync<bool>("initializeBlazorInterop");
+                if (result)
+                {
+                    isInitialized = true;
+                    Console.WriteLine("JavaScript interop initialized successfully");
+                }
+                else
+                {
+                    Console.WriteLine("Failed to initialize JavaScript interop");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing JavaScript interop: {ex.Message}");
+        }
+    }
+
+    private async Task LoadYears()
+    {
+        try
+        {
+            availableYears = await DbContext.BoardMembers
+                .Select(b => b.Year)
+                .Distinct()
+                .OrderByDescending(y => y)
+                .ToListAsync();
+            Console.WriteLine($"Loaded {availableYears.Count} years: {string.Join(", ", availableYears)}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading years: {ex.Message}");
+            errorMessage = "Error loading years. Please try again.";
+        }
+    }
+
+    private async Task LoadBoardMembers()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(selectedYear))
+            {
+                boardMembers = await DbContext.BoardMembers
+                    .Where(b => b.Year == selectedYear)
+                    .OrderBy(b => b.IsAdvisor)
+                    .ThenBy(b => b.Order ?? 99)
+                    .ToListAsync();
+                Console.WriteLine($"Loaded {boardMembers.Count} board members for year {selectedYear}");
+            }
+            else
+            {
+                boardMembers = new();
+                Console.WriteLine("No year selected, board members list cleared");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading board members: {ex.Message}");
+            errorMessage = "Error loading board members. Please try again.";
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        editingMember = new BoardMember { Year = selectedYear };
+        showModal = true;
+    }
+
+    private void ShowEditModal(BoardMember member)
+    {
+        editingMember = new BoardMember
+        {
+            Id = member.Id,
+            Name = member.Name,
+            Role = member.Role,
+            Year = member.Year,
+            IsAdvisor = member.IsAdvisor,
+            Order = member.Order,
+            Description = member.Description
+        };
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingMember = new BoardMember { Year = selectedYear };
+        errorMessage = string.Empty;
+    }
+
+    private async Task SaveMember()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(editingMember.Name))
+            {
+                errorMessage = "Name is required.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(editingMember.Role))
+            {
+                errorMessage = "Role is required.";
+                return;
+            }
+
+            editingMember.Year = selectedYear;
+
+            var exists = await DbContext.BoardMembers
+                .AnyAsync(b => b.Year == editingMember.Year
+                            && b.Role == editingMember.Role
+                            && b.IsAdvisor == editingMember.IsAdvisor
+                            && b.Id != editingMember.Id);
+
+            if (exists)
+            {
+                errorMessage = "A board member with the same role and advisor status already exists for this year.";
+                return;
+            }
+
+            if (editingMember.Id == 0)
+            {
+                DbContext.BoardMembers.Add(editingMember);
+            }
+            else
+            {
+                var dbMember = await DbContext.BoardMembers.FindAsync(editingMember.Id);
+                if (dbMember != null)
+                {
+                    dbMember.Name = editingMember.Name;
+                    dbMember.Role = editingMember.Role;
+                    dbMember.IsAdvisor = editingMember.IsAdvisor;
+                    dbMember.Order = editingMember.Order;
+                    dbMember.Description = editingMember.Description;
+                    dbMember.UpdatedOn = DateTime.UtcNow;
+                }
+            }
+
+            await DbContext.SaveChangesAsync();
+            await LoadBoardMembers();
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving board member: {ex.Message}";
+            Console.WriteLine($"Error in SaveMember: {ex}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ConfirmDelete(BoardMember member)
+    {
+        try
+        {
+            if (!isInitialized)
+            {
+                await InitializeJsInterop();
+            }
+
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Delete {member.Name} ({member.Role})?");
+            if (confirmed)
+            {
+                DbContext.BoardMembers.Remove(member);
+                await DbContext.SaveChangesAsync();
+                await LoadBoardMembers();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in ConfirmDelete: {ex.Message}");
+            errorMessage = "Error deleting board member. Please try again.";
+        }
+    }
+
+    private void ShowAddYearModal()
+    {
+        newYear = new InputYear();
+        showYearModal = true;
+    }
+
+    private void CloseYearModal()
+    {
+        showYearModal = false;
+        newYear = new InputYear();
+    }
+
+    private async Task AddYear()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(newYear.Value) && !availableYears.Contains(newYear.Value))
+            {
+                // Create a default board member for the new year
+                var defaultMember = new BoardMember
+                {
+                    Year = newYear.Value,
+                    Name = "Default Member",
+                    Role = "President",
+                    IsAdvisor = false,
+                    Order = 1,
+                    Description = "Default board member for new year"
+                };
+
+                DbContext.BoardMembers.Add(defaultMember);
+                await DbContext.SaveChangesAsync();
+
+                // Update UI
+                availableYears.Insert(0, newYear.Value);
+                selectedYear = newYear.Value;
+                showYearModal = false;
+                await LoadBoardMembers();
+            }
+            else if (string.IsNullOrWhiteSpace(newYear.Value))
+            {
+                errorMessage = "Year value is required.";
+            }
+            else
+            {
+                errorMessage = "This year already exists.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding year: {ex.Message}");
+            errorMessage = "Error adding new year. Please try again.";
+        }
+    }
+
+    private async Task OnYearChanged(ChangeEventArgs e)
+    {
+        selectedYear = e.Value?.ToString() ?? string.Empty;
+        await LoadBoardMembers();
+    }
+
+    private class InputYear
+    {
+        [Required]
+        public string Value { get; set; } = string.Empty;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (isInitialized)
+            {
+                await JSRuntime.InvokeVoidAsync("cleanupBlazorInterop");
+                isInitialized = false;
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit is already disconnected, no need to cleanup
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during cleanup: {ex.Message}");
+        }
+    }
+} 

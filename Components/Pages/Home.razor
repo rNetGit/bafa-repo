@@ -1,0 +1,396 @@
+﻿@page "/"
+@using BafaMobile.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@using BafaMobile.Services
+@using BafaMobile.Models
+@using BafaMobile.Components.Pages
+@using Microsoft.AspNetCore.Identity
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager Navigation
+@inject UserManager<AppUser> UserManager
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject BafaDbContext DbContext
+@inject EventService EventService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+@* @inject AuthenticationStateProvider AuthProvider *@
+
+@* <h3>Welcome, @SessionService.Email</h3> *@
+
+<div class="container-fluid p-0">
+    <!-- Hero Section -->
+    <div class="hero-section text-center py-5 bg-light">
+        <div class="container">
+            <img src="Images\nybafalogo.png" class="mb-4" style="max-width: 200px;" />
+            <h1 class="display-5 fw-bold text-primary">Bangladeshi American Foundation of Albany</h1>
+            <p class="lead text-muted">Connecting and empowering the Bangladeshi community in Albany</p>
+        </div>
+    </div>
+
+    <div class="container py-4">
+        <!-- Welcome Card -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title fw-bold mb-0">Welcome, @username!</h5>
+                    @if (isAuthenticated == "0")
+                    {
+                        <button class="btn btn-outline-primary" @onclick="ToggleLoginForm">
+                            <i class="bi bi-box-arrow-in-right"></i> Sign In
+                        </button>
+                    }
+                </div>
+                <p class="card-text text-muted">Connect with the Bangladeshi community in Albany. Renew your membership, register for events, and support our cause.</p>
+            </div>
+        </div>
+
+        <!-- Login Form -->
+        @if (isAuthenticated == "0" && showLoginForm)
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-box-arrow-in-right"></i> Sign In</h5>
+                    <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger small" />
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText class="form-control" @bind-Value="loginModel.Email" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <InputText type="password" class="form-control" @bind-Value="loginModel.Password" />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Signing in...</span>
+                            }
+                            else
+                            {
+                                <span>Sign In</span>
+                            }
+                        </button>
+                        @if (!string.IsNullOrEmpty(loginError))
+                        {
+                            <div class="alert alert-danger mt-3 mb-0">@loginError</div>
+                        }
+                        <div class="mt-3 text-center">
+                            <a href="/account" class="text-decoration-none">Create Account</a> |
+                            <a href="/forgot-password" class="text-decoration-none">Forgot Password?</a>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        }
+
+        <!-- Quick Actions -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <a href="members" class="text-decoration-none">
+                    <div class="card h-100 shadow-sm border-0 hover-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-person-badge display-4 text-primary mb-3"></i>
+                            <h5 class="card-title">Join/Renew</h5>
+                            <p class="card-text text-muted small">Become a member or renew your membership</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="events" class="text-decoration-none">
+                    <div class="card h-100 shadow-sm border-0 hover-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-calendar-event display-4 text-success mb-3"></i>
+                            <h5 class="card-title">Events</h5>
+                            <p class="card-text text-muted small">View and register for upcoming events</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="donate" class="text-decoration-none">
+                    <div class="card h-100 shadow-sm border-0 hover-card">
+                        <div class="card-body text-center p-4">
+                            <i class="bi bi-heart-fill display-4 text-danger mb-3"></i>
+                            <h5 class="card-title">Donate</h5>
+                            <p class="card-text text-muted small">Support our community initiatives</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Upcoming Events -->
+        @if (upcomingEvents.Any())
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-bold mb-3">Upcoming Events</h5>
+                    <div class="row g-3">
+                        @foreach (var evt in upcomingEvents)
+                        {
+                            <div class="col-md-6">
+                                <div class="card h-100 border-0 bg-light">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="card-title mb-1">@evt.Name</h6>
+                                                <p class="card-text text-muted small mb-2">
+                                                    <i class="bi bi-geo-alt"></i> @evt.Location
+                                                </p>
+                                            </div>
+                                            <span class="badge bg-primary">@evt.EventDate.ToString("MMM dd")</span>
+                                        </div>
+                                        <p class="card-text small">@evt.Description</p>
+                                        <a href="events" class="btn btn-sm btn-outline-primary">Learn More</a>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Latest Updates -->
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h5 class="card-title fw-bold mb-3">Latest Updates</h5>
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    The executive committee has announced new community programs for this year. Check the resources section for details.
+                    <a href="resources" class="alert-link ms-2">Learn More</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+
+    .hover-card {
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .hover-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .card {
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+</style>
+
+@* <!-- Mobile Footer Navigation -->
+<nav class="navbar fixed-bottom navbar-light bg-white border-top shadow-sm">
+    <div class="container d-flex justify-content-around">
+        <a class="text-center text-dark" href="/">
+            <div><i class="bi bi-house-door-fill"></i></div>
+            <small>Home</small>
+        </a>
+        <a class="text-center text-dark" href="events">
+            <div><i class="bi bi-calendar-event"></i></div>
+            <small>Events</small>
+        </a>
+        <a class="text-center text-dark" href="Confirm">
+            <div><i class="bi bi-person-badge"></i></div>
+            <small>Membership</small>
+        </a>
+        <a class="text-center text-dark" href="donate">
+            <div><i class="bi bi-heart-fill"></i></div>
+            <small>Donate</small>
+        </a>
+        <a class="text-center text-dark" href="admin">
+            <div><i class="bi bi-gear-fill"></i></div>
+            <small>Admin</small>
+        </a>
+    </div>
+</nav>
+ *@
+@code {
+    private bool hasRenderedAfterLogin = false;
+    private bool showLoginForm = false;
+    private bool isProcessing = false;
+    private string loginError = string.Empty;
+    private List<EventRecord> upcomingEvents = new();
+    public bool ShowAdminIcon = false;
+    private string? email;
+    private bool jsInitialized = false;
+    private string username = "";
+    private string isAuthenticated = "0";
+
+    private LoginModel loginModel = new();
+
+    public class LoginModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    [Inject] AuthenticationStateProvider AuthStateProvider { get; set; }
+    [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Initialize JS interop first
+            await InitializeJsInterop();
+
+            // Get user from session service
+            var currentUser = await UserSessionService.GetCurrentUserAsync();
+            if (currentUser != null)
+            {
+                username = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
+                isAuthenticated = "1";
+            }
+            else
+            {
+                username = "Guest";
+                isAuthenticated = "0";
+            }
+
+            upcomingEvents = await EventService.GetUpcomingEventsAsync(limit: 2);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in OnInitializedAsync: {ex.Message}");
+        }
+    }
+
+    private async Task InitializeJsInterop()
+    {
+        if (!jsInitialized)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("initializeBlazorInterop");
+                jsInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing JS interop: {ex.Message}");
+            }
+        }
+    }
+
+    private void ToggleLoginForm()
+    {
+        showLoginForm = !showLoginForm;
+        if (showLoginForm)
+        {
+            loginError = string.Empty;
+            loginModel = new LoginModel();
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        if (isProcessing) return;
+
+        try
+        {
+            isProcessing = true;
+            loginError = string.Empty;
+
+            // Ensure JS interop is initialized
+            await InitializeJsInterop();
+
+            var user = await UserManager.FindByEmailAsync(loginModel.Email);
+
+            if (user != null && await UserManager.CheckPasswordAsync(user, loginModel.Password))
+            {
+                // Create user session
+                var currentUser = new UserModel
+                {
+                    UserId = user.Id,
+                    FirstName = user.FullName.Split(' ').FirstOrDefault() ?? "",
+                    LastName = user.FullName.Split(' ').Skip(1).FirstOrDefault() ?? "",
+                    Email = user.UserName
+                };
+
+                // Set user session first
+                await UserSessionService.SetCurrentUserAsync(currentUser);
+
+                // Update local state
+                username = user.FullName;
+                isAuthenticated = "1";
+
+                // Force reload to reset renderer and JS interop state
+              //  Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+                Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+                return;
+            }
+            else
+            {
+                loginError = "Invalid credentials. Please try again.";
+                isAuthenticated = "0";
+            }
+        }
+        catch (Exception ex)
+        {
+            loginError = $"Login error: {ex.Message}";
+            isAuthenticated = "0";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            // Ensure JS interop is initialized
+            await InitializeJsInterop();
+
+            // Clear user session
+            await UserSessionService.ClearUserSessionAsync();
+            
+            // Reset local state
+            username = "Guest";
+            isAuthenticated = "0";
+            
+            // Force reload to reset renderer and JS interop state
+           // Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Logout error: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        if (jsInitialized)
+        {
+            try
+            {
+                JSRuntime.InvokeVoidAsync("cleanupBlazorInterop");
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
+    }
+}

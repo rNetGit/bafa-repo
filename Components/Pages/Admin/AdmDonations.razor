@@ -1,0 +1,301 @@
+@page "/admin/admdonations"
+@using BafaMobile.Models
+@using BafaMobile.Services
+@using BafaMobile.Data
+@using Microsoft.JSInterop
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject NavigationManager Navigation
+@using Microsoft.EntityFrameworkCore
+@inject IJSRuntime JSRuntime
+@inject BafaDbContext DbContext
+@inject ILogger<AdmDonations> Logger
+
+<h4 class="fw-bold mt-3 text-center">Donation Management</h4>
+
+<div class="card p-3 shadow-sm mb-4">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Filter by Year</label>
+            <InputSelect class="form-select" @bind-Value="selectedYear" @onchange="LoadDonations">
+                <option value="">All Years</option>
+                @foreach (var year in availableYears)
+                {
+                    <option value="@year">@year</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Filter by Last Name</label>
+            <InputText class="form-control" @bind-Value="lastNameFilter" @oninput="OnLastNameFilterChanged" placeholder="Enter last name..." />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Filter by Amount Range</label>
+            <div class="input-group">
+                <input type="number" class="form-control" @bind="minAmountString" @bind:event="oninput" placeholder="Min" />
+                <input type="number" class="form-control" @bind="maxAmountString" @bind:event="oninput" placeholder="Max" />
+                <button class="btn btn-outline-secondary" @onclick="ApplyAmountFilter">Apply</button>
+            </div>
+        </div>
+        <div class="col-md-3 align-self-end">
+            <button class="btn btn-secondary" @onclick="ResetFilters">Reset Filters</button>
+        </div>
+    </div>
+</div>
+
+@if (donations.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Donor Name</th>
+                   @*  <th>Email</th> *@
+                    <th>Purpose</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var donation in donations)
+                {
+                    <tr>
+                        @{
+                            DateTime createdDate;
+                            var isParsed = DateTime.TryParse(donation.CreatedOn, out createdDate);
+                        }
+                        <td>@(isParsed ? createdDate.ToShortDateString() : donation.CreatedOn)</td>
+                        <td>@donation.User?.FullName</td>
+                      @*   <td>@donation.Email</td> *@
+                        <td>@donation.Purpose</td>
+                        <td>@donation.Amount.ToString("C")</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(donation)">View Details</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div>
+            <span class="text-muted">Total Donations: @donations.Count</span>
+            <span class="ms-3 text-muted">Total Amount: @donations.Sum(d => d.Amount).ToString("C")</span>
+        </div>
+    </div>
+}
+else
+{
+    <p class="text-muted">No donations found for the selected filters.</p>
+}
+
+@if (showDetails)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title">Donation Details</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetails"></button>
+                </div>
+                <div class="modal-body">
+                    @if (selectedDonation != null)
+                    {
+                        <dl class="row">
+                            <dt class="col-sm-4">Donor Name</dt>
+                            <dd class="col-sm-8">@selectedDonation.User?.FullName</dd>
+
+                            <dt class="col-sm-4">Email</dt>
+                            <dd class="col-sm-8">@selectedDonation.Email</dd>
+
+                            <dt class="col-sm-4">Purpose</dt>
+                            <dd class="col-sm-8">@selectedDonation.Purpose</dd>
+
+                            <dt class="col-sm-4">Amount</dt>
+                            <dd class="col-sm-8">@selectedDonation.Amount.ToString("C")</dd>
+
+                            <dt class="col-sm-4">Date</dt>
+                            <dd class="col-sm-8">@selectedDonation.CreatedOn</dd>
+                        </dl>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetails">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    private List<PaymentIntent> donations = new();
+    private List<int> availableYears = new();
+    private string selectedYear = "";
+    private string lastNameFilter = "";
+    private string minAmountString = "";
+    private string maxAmountString = "";
+    private decimal? minAmount;
+    private decimal? maxAmount;
+    private bool showDetails = false;
+    private PaymentIntent? selectedDonation;
+    private Timer? filterTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSessionService.GetCurrentUserAsync();
+        if (user?.Email != "admin@bafa.org")
+        {
+           // Navigation.NavigateTo("/", true);
+            Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            return;
+        }
+
+        await LoadDonations();
+        await LoadAvailableYears();
+    }
+
+    private async Task LoadAvailableYears()
+    {
+        try
+        {
+            // Get all records first
+            var records = await DbContext.PaymentIntents.ToListAsync();
+            
+            // Then extract and sort years in memory
+            availableYears = records
+                .Select(p => DateTime.Parse(p.CreatedOn).Year)
+                .Distinct()
+                .OrderByDescending(y => y)
+                .ToList();
+
+            Logger.LogInformation($"Loaded {availableYears.Count} available years");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading available years");
+            await JSRuntime.InvokeVoidAsync("alert", "Error loading available years");
+        }
+    }
+
+    private async Task LoadDonations()
+    {
+        try
+        {
+            // First, let's check if we have any records at all
+            var totalCount = await DbContext.PaymentIntents.CountAsync();
+            Logger.LogInformation($"Total payment intents in database: {totalCount}");
+
+            // Get all records with user data
+            var records = await DbContext.PaymentIntents
+                .Include(p => p.User)
+                .ToListAsync();
+
+            Logger.LogInformation($"Retrieved {records.Count} records from database");
+
+            // Apply filters in memory
+            var filteredRecords = records.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(selectedYear))
+            {
+                filteredRecords = filteredRecords.Where(p => p.CreatedOn.StartsWith(selectedYear));
+                Logger.LogInformation($"Filtered by year {selectedYear}");
+            }
+
+            if (!string.IsNullOrEmpty(lastNameFilter))
+            {
+                filteredRecords = filteredRecords.Where(p => 
+                    p.User != null && 
+                    p.User.FullName.Contains(lastNameFilter, StringComparison.OrdinalIgnoreCase));
+                Logger.LogInformation($"Filtered by last name: {lastNameFilter}");
+            }
+
+            if (minAmount.HasValue && minAmount.Value > 0)
+            {
+                filteredRecords = filteredRecords.Where(p => p.Amount >= minAmount.Value);
+                Logger.LogInformation($"Filtered by min amount: {minAmount}");
+            }
+
+            if (maxAmount.HasValue && maxAmount.Value > 0)
+            {
+                filteredRecords = filteredRecords.Where(p => p.Amount <= maxAmount.Value);
+                Logger.LogInformation($"Filtered by max amount: {maxAmount}");
+            }
+
+            // Sort the filtered records
+            donations = filteredRecords
+                .OrderByDescending(p => DateTime.Parse(p.CreatedOn))
+                .ToList();
+
+            Logger.LogInformation($"Final filtered count: {donations.Count} records");
+
+            // Log the first few records for debugging
+            foreach (var donation in donations.Take(3))
+            {
+                Logger.LogInformation($"Donation: Id={donation.Id}, Amount={donation.Amount}, CreatedOn={donation.CreatedOn}, UserId={donation.UserId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading donations");
+            await JSRuntime.InvokeVoidAsync("alert", "Error loading donations: " + ex.Message);
+        }
+    }
+
+    private async void OnLastNameFilterChanged(ChangeEventArgs e)
+    {
+        lastNameFilter = e.Value?.ToString() ?? "";
+        
+        // Debounce the filter to avoid too many database queries
+        filterTimer?.Dispose();
+        filterTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadDonations();
+                StateHasChanged();
+            });
+        }, null, 500, Timeout.Infinite);
+    }
+
+    private async Task ApplyAmountFilter()
+    {
+        minAmount = string.IsNullOrEmpty(minAmountString) ? null : 
+            decimal.TryParse(minAmountString, out var min) ? min : null;
+        
+        maxAmount = string.IsNullOrEmpty(maxAmountString) ? null : 
+            decimal.TryParse(maxAmountString, out var max) ? max : null;
+
+        await LoadDonations();
+    }
+
+    private void ResetFilters()
+    {
+        selectedYear = "";
+        lastNameFilter = "";
+        minAmountString = "";
+        maxAmountString = "";
+        minAmount = null;
+        maxAmount = null;
+        LoadDonations();
+    }
+
+    private void ViewDetails(PaymentIntent donation)
+    {
+        selectedDonation = donation;
+        showDetails = true;
+    }
+
+    private void CloseDetails()
+    {
+        showDetails = false;
+        selectedDonation = null;
+    }
+
+    public void Dispose()
+    {
+        filterTimer?.Dispose();
+    }
+} 

@@ -1,0 +1,277 @@
+﻿@page "/members"
+@using BafaMobile.Data
+@using BafaMobile.Models
+@using BafaMobile.Services
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject BafaDbContext DbContext
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@using Microsoft.EntityFrameworkCore
+
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="text-center mb-4">
+        <i class="bi bi-person-check-fill text-primary display-4 mb-3"></i>
+        <h4 class="fw-bold mb-1">Membership Portal</h4>
+        <p class="text-muted">Manage your NYBAFA membership</p>
+    </div>
+
+    @if (user != null)
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <!-- Membership Status Card -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title fw-bold mb-0">Membership Status</h5>
+                            <span class="badge bg-@(membership?.MembershipStatus == "Active" ? "success" : "warning")">
+                                @(membership?.MembershipStatus ?? "No Membership")
+                            </span>
+                        </div>
+
+                        @if (membership != null)
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center text-muted mb-2">
+                                        <i class="bi bi-person me-2"></i>
+                                        <span>@membership.FirstName @membership.LastName</span>
+                                    </div>
+                                    <div class="d-flex align-items-center text-muted mb-2">
+                                        <i class="bi bi-envelope me-2"></i>
+                                        <span>@membership.Email</span>
+                                    </div>
+                                    <div class="d-flex align-items-center text-muted">
+                                        <i class="bi bi-telephone me-2"></i>
+                                        <span>@membership.Phone</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center text-muted mb-2">
+                                        <i class="bi bi-geo-alt me-2"></i>
+                                        <span>@membership.Address</span>
+                                    </div>
+                                    <div class="d-flex align-items-center text-muted mb-2">
+                                        <i class="bi bi-building me-2"></i>
+                                        <span>@membership.City, @membership.State @membership.ZipCode</span>
+                                    </div>
+                                    <div class="d-flex align-items-center text-muted">
+                                        <i class="bi bi-calendar-check me-2"></i>
+                                        <span>Member since @membership.JoinDate.ToString("MMM yyyy")</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4" />
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card bg-light border-0">
+                                        <div class="card-body">
+                                            <h6 class="card-title fw-bold">Membership Type</h6>
+                                            <p class="card-text mb-0">@membership.MembershipType</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light border-0">
+                                        <div class="card-body">
+                                            <h6 class="card-title fw-bold">Payment Status</h6>
+                                            <p class="card-text mb-0">
+                                                @if (membership.IsPaid)
+                                                {
+                                                    <span class="text-success">
+                                                        <i class="bi bi-check-circle-fill me-1"></i>Paid
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-warning">
+                                                        <i class="bi bi-exclamation-circle-fill me-1"></i>Pending
+                                                    </span>
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (!membership.IsPaid)
+                            {
+                                <div class="alert alert-warning mt-4">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    Your membership is pending payment. Please complete the payment to activate your membership.
+                                </div>
+                                <div class="d-flex gap-2 mt-3">
+                                    <button class="btn btn-success flex-grow-1" @onclick="RedirectToPayPal">
+                                        <i class="bi bi-paypal me-2"></i>Pay with PayPal
+                                    </button>
+                                    <button class="btn btn-outline-primary" @onclick="CopyZelleInfo">
+                                        <i class="bi bi-clipboard me-2"></i>Copy Zelle Info
+                                    </button>
+                                </div>
+                            }
+                            else if (membership.JoinDate.Year < DateTime.UtcNow.Year)
+                            {
+                                <div class="alert alert-info mt-4">
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                    Your membership has expired. Please renew to continue enjoying member benefits.
+                                </div>
+                                <button class="btn btn-primary w-100 mt-3" @onclick="@(() => Navigation.NavigateTo("/membership/apply"))">
+                                    <i class="bi bi-arrow-repeat me-2"></i>Renew Membership
+                                </button>
+                            }
+                            else
+                            {
+                                <div class="d-flex gap-2 mt-4">
+                                    <button class="btn btn-outline-primary flex-grow-1" @onclick="DownloadMembershipCard">
+                                        <i class="bi bi-card-text me-2"></i>Download Membership Card
+                                    </button>
+                                    <button class="btn btn-outline-secondary" @onclick="ShareMembership">
+                                        <i class="bi bi-share me-2"></i>Share
+                                    </button>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="bi bi-person-x display-1 text-muted mb-3"></i>
+                                <h5>No Active Membership</h5>
+                                <p class="text-muted mb-4">You don't have an active membership. Join now to access member benefits.</p>
+                                <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/membership/apply"))">
+                                    <i class="bi bi-person-plus me-2"></i>Join Now
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Help Section -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <h5 class="card-title fw-bold mb-3">Need Help?</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center text-muted">
+                                    <i class="bi bi-envelope-fill me-2"></i>
+                                    <span>Email: support@nybafa.org</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center text-muted">
+                                    <i class="bi bi-telephone-fill me-2"></i>
+                                    <span>Phone: (555) 123-4567</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-lock-fill display-1 text-muted mb-3"></i>
+            <h5>Sign In Required</h5>
+            <p class="text-muted mb-4">Please sign in to view your membership details.</p>
+            <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/account"))">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+            </button>
+        </div>
+    }
+</div>
+
+<style>
+    .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+</style>
+
+@code {
+    private UserModel? user;
+    private MembershipModel? membership;
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserSessionService.GetCurrentUserAsync();
+
+        if (user != null)
+        {
+            try
+            {
+                membership = await DbContext.Memberships
+                    .Where(m => m.UserId == user.UserId)
+                    .OrderByDescending(m => m.JoinDate)
+                    .FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error loading membership: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task RedirectToPayPal()
+    {
+        if (user == null) return;
+
+        string itemName = "2025 Membership Fee";
+        string amount = membership?.MembershipType == "Family" ? "30.00" : "20.00";
+        string returnUrl = Navigation.ToAbsoluteUri("/payment-success").ToString();
+        string cancelUrl = Navigation.ToAbsoluteUri("/payment-cancelled").ToString();
+
+        var paypalUrl = $"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=finance@nybafa.org&item_name={itemName}&amount={amount}&return={returnUrl}&cancel_return={cancelUrl}";
+        await JSRuntime.InvokeVoidAsync("window.open", paypalUrl, "_blank");
+    }
+
+    private async Task CopyZelleInfo()
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", "finance@nybafa.org");
+        await JSRuntime.InvokeVoidAsync("alert", "Zelle information copied to clipboard!");
+    }
+
+    private async Task DownloadMembershipCard()
+    {
+        if (membership == null) return;
+        await JSRuntime.InvokeVoidAsync("window.open", $"/generate-membership-pdf?userId={membership.UserId}", "_blank");
+    }
+
+    private async Task ShareMembership()
+    {
+        if (membership == null) return;
+
+        try
+        {
+            var shareText = $"I am a proud member of NYBAFA! Join me in supporting our community. Visit {Navigation.BaseUri} to learn more.";
+            
+            if (await JSRuntime.InvokeAsync<bool>("navigator.share", new
+            {
+                title = "NYBAFA Membership",
+                text = shareText,
+                url = Navigation.BaseUri
+            }))
+            {
+                // Web Share API was successful
+            }
+            else
+            {
+                // Fallback for browsers that don't support Web Share API
+                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareText);
+                await JSRuntime.InvokeVoidAsync("alert", "Membership information copied to clipboard!");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error sharing membership: {ex.Message}");
+        }
+    }
+}

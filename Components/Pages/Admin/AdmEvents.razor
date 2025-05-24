@@ -1,0 +1,242 @@
+﻿@page "/admin/admevents"
+@using BafaMobile.Data
+@using BafaMobile.Models
+@using BafaMobile.Services
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject NavigationManager Navigation
+@using Microsoft.EntityFrameworkCore
+@inject IJSRuntime JSRuntime
+@inject BafaDbContext DbContext
+
+<h4 class="fw-bold mt-3 text-center">Event Management</h4>
+
+<div class="card p-3 shadow-sm mb-4">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label">Show Events</label>
+            <InputSelect class="form-select" @bind-Value="filterStatus" @onchange="LoadEvents">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="all">All</option>
+            </InputSelect>
+        </div>
+        <div class="col-md-4 align-self-end">
+            <button class="btn btn-primary" @onclick="ShowCreateForm">Create New Event</button>
+        </div>
+    </div>
+</div>
+
+@if (showForm)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @((editingEvent.Id == 0) ? "Create Event" : "Edit Event")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CancelForm"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="editingEvent" OnValidSubmit="SaveEvent">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-2">
+                            <label>Name</label>
+                            <InputText class="form-control" @bind-Value="editingEvent.Name" />
+                        </div>
+                        <div class="mb-2">
+                            <label>Type</label>
+                            <InputText class="form-control" @bind-Value="editingEvent.Type" />
+                        </div>
+                        <div class="mb-2">
+                            <label>Location</label>
+                            <InputText class="form-control" @bind-Value="editingEvent.Location" />
+                        </div>
+                        <div class="mb-2">
+                            <label>Event Date</label>
+                            <InputDate class="form-control" @bind-Value="editingEvent.EventDate" />
+                        </div>
+                        <div class="mb-2">
+                            <label>Description</label>
+                            <InputTextArea class="form-control" @bind-Value="editingEvent.Description" rows="3" />
+                        </div>
+
+                        <div class="text-end mt-3">
+                            <button type="submit" class="btn btn-success me-2">Save</button>
+                            <button type="button" class="btn btn-secondary" @onclick="CancelForm">Cancel</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@if (events.Any())
+{
+    <table class="table table-bordered table-sm">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Date</th>
+        
+                <th>Status</th>
+                
+                <th style="width: 100px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ev in events)
+            {
+                var isPast = ev.EventDate < DateTime.Today;
+                <tr>
+                    <td>@ev.Name</td>
+                    <td>@ev.Type</td>
+                    <td>@ev.Location</td>
+                    <td>@ev.EventDate.ToShortDateString()</td>
+                    <td>@(isPast ? "Inactive" : "Active")</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditEvent(ev)">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(ev.Id)">Delete</button>
+                    </td>
+
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="text-muted">No events found for the selected filter.</p>
+}
+
+@code {
+    
+    private List<EventRecord> events = new();
+    private EventRecord editingEvent = new();
+    private string filterStatus = "active";
+    private bool showForm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await UserSessionService.GetCurrentUserAsync();
+        if (user?.Email != "admin@bafa.org")
+        {
+          //  Navigation.NavigateTo("/", true);
+            Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            return;
+        }
+
+        await LoadEvents();
+    }
+
+    private async Task LoadEvents()
+    {
+        var query = DbContext.Events.AsQueryable();
+
+        if (filterStatus == "active")
+        {
+            query = query.Where(e => e.EventDate >= DateTime.Today);
+        }
+        else if (filterStatus == "inactive")
+        {
+            query = query.Where(e => e.EventDate < DateTime.Today);
+        }
+
+        events = await query.OrderBy(e => e.EventDate).ToListAsync();
+    }
+
+    private void ShowCreateForm()
+    {
+        editingEvent = new EventRecord
+            {
+                EventDate = DateTime.Today
+            };
+        showForm = true;
+    }
+
+    private void EditEvent(EventRecord ev)
+    {
+        editingEvent = new EventRecord
+            {
+                Id = ev.Id,
+                Name = ev.Name,
+                Type = ev.Type,
+                Location = ev.Location,
+                EventDate = ev.EventDate,
+                Description = ev.Description
+            };
+        showForm = true;
+    }
+
+    private async Task SaveEvent()
+    {
+        if (editingEvent.Id == 0)
+        {
+            DbContext.Events.Add(editingEvent);
+        }
+        else
+        {
+            var dbEvent = await DbContext.Events.FindAsync(editingEvent.Id);
+            if (dbEvent is not null)
+            {
+                dbEvent.Name = editingEvent.Name;
+                dbEvent.Type = editingEvent.Type;
+                dbEvent.Location = editingEvent.Location;
+                dbEvent.EventDate = editingEvent.EventDate;
+                dbEvent.Description = editingEvent.Description;
+            }
+        }
+
+        await DbContext.SaveChangesAsync();
+        showForm = false;
+        await LoadEvents();
+    }
+
+    private async Task ConfirmDelete(int id)
+    {
+        var evt = await DbContext.Events.FindAsync(id);
+        if (evt is not null)
+        {
+            bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete the event '{evt.Name}'?");
+            if (confirmed)
+            {
+                try
+                {
+                    // First, delete any associated registrations
+                    var registrations = await DbContext.EventRegistrations
+                        .Where(r => r.EventId == id)
+                        .ToListAsync();
+                    
+                    if (registrations.Any())
+                    {
+                        DbContext.EventRegistrations.RemoveRange(registrations);
+                    }
+
+                    // Then delete the event
+                    DbContext.Events.Remove(evt);
+                    await DbContext.SaveChangesAsync();
+                    await LoadEvents();
+                }
+                catch (Exception ex)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"Error deleting event: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    private void CancelForm()
+    {
+        editingEvent = new();
+        showForm = false;
+    }
+}

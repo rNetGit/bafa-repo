@@ -1,0 +1,157 @@
+﻿@page "/account"
+
+
+@using BafaMobile.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using BafaMobile.Models
+@using BafaMobile.Services
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthProvider
+@inject BafaDbContext Db
+@inject UserManager<AppUser> UserManager
+@inject UserSessionService SessionService
+
+
+<h4 class="fw-bold mt-4">BAFA Account</h4>
+<p>Create an account to manage your membership</p>
+    
+    <div class="card p-4 shadow-sm mt-3">
+        <h5 class="text-success mb-3"><i class="bi bi-person-plus"></i> Create Account</h5>
+        @if (!string.IsNullOrEmpty(registerMessage))
+        {
+            <div class="alert alert-danger">@registerMessage</div>
+        }
+        <EditForm Model="registerModel" OnValidSubmit="HandleRegister" FormName="RegisterForm">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label>Full Name</label>
+                <InputText class="form-control" @bind-Value="registerModel.FullName" />
+            </div>
+
+            <div class="mb-3">
+                <label>Email</label>
+                <InputText class="form-control" @bind-Value="registerModel.Email" />
+            </div>
+
+            <div class="mb-3">
+                <label>Password</label>
+                <InputText class="form-control" @bind-Value="registerModel.Password" type="password" />
+            </div>
+
+            <div class="mb-3">
+                <label>Confirm Password</label>
+                <InputText class="form-control" @bind-Value="registerModel.ConfirmPassword" type="password" />
+            </div>
+
+            <button class="btn btn-success w-100">Create Account</button>
+        </EditForm>
+    </div>
+
+@code {
+
+    [Inject]
+    private IHttpContextAccessor HttpContextAccessor { get; set;}
+
+    private bool isLogin = true;
+    private string loginMessage;
+    private string registerMessage;
+
+    private LoginModel loginModel = new();
+    private RegisterModel registerModel = new();
+
+    public class LoginModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; }
+
+        [Required]
+        public string Password { get; set; }
+    }
+
+    public class RegisterModel
+    {
+        [Required]
+        public string FullName { get; set; }
+
+        [Required, EmailAddress]
+        public string Email { get; set; }
+
+        [Required]
+        public string Password { get; set; }
+
+        [Required]
+        [Compare("Password", ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; }
+    }
+    protected override void OnInitialized()
+    {
+       
+    }
+
+    private async Task HandleLogin()
+    {
+
+  
+        try
+        {
+            var user = await UserManager.FindByEmailAsync(loginModel.Email);
+
+            if (user != null && await UserManager.CheckPasswordAsync(user, loginModel.Password))
+            {
+            
+
+               // Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+
+                Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            }
+            else
+            {
+                loginMessage = "Invalid login.";
+                HttpContextAccessor.HttpContext.Session.SetString("IsAuthenticated", "0");
+
+            }
+        }
+        catch (Exception ex)
+        {
+            loginMessage = $"Login error: {ex.Message}";
+        }
+    }
+   
+
+
+    private async Task HandleRegister()
+    {
+        var user = new AppUser
+            {
+                UserName = registerModel.Email,
+                Email = registerModel.Email,
+                FullName = registerModel.FullName
+            };
+
+        var result = await UserManager.CreateAsync(user, registerModel.Password);
+        if (result.Succeeded)
+        {
+            // ❌ Remove this (causes header issue)
+            // await SignInManager.SignInAsync(user, isPersistent: false);
+
+            // ✅ Instead: Redirect user to login page
+            registerMessage = "Account created. Please sign in.";
+            //Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+           // isLogin = true; // switch tab
+        }
+        else
+        {
+            registerMessage = string.Join("; ", result.Errors.Select(e => e.Description));
+        }
+    }
+
+}
+
+
+

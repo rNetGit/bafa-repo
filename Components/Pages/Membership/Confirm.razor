@@ -1,0 +1,90 @@
+﻿@page "/membership/confirm"
+@using BafaMobile.Data
+@using BafaMobile.Models
+@using BafaMobile.Services
+@using Microsoft.EntityFrameworkCore
+@inject IUserSessionService UserSessionService
+@inject BafaDbContext DbContext
+@inject NavigationManager Navigation
+
+
+<h4 class="fw-bold text-center mt-5">Thank You!</h4>
+<p class="text-center text-muted">Your membership application has been submitted successfully.</p>
+
+<div class="card mx-auto shadow-sm mt-4" style="max-width: 500px">
+    <div class="card-body text-center">
+        <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
+        <h5 class="mt-2">Confirmation</h5>
+
+        @if (user != null)
+        {
+            <p class="text-muted">Submitted by <strong>@user.FirstName @user.LastName</strong> (<code>@user.Email</code>)</p>
+
+            @if (membership != null)
+            {
+                <div class="alert alert-success mt-3 text-start">
+                    <h6 class="fw-bold">Membership Details</h6>
+                    <p><strong>Status:</strong> Active</p>
+                    <p><strong>Membership Type:</strong> @membership.MembershipType</p>
+                    <p><strong>Year:</strong> @membership.JoinDate.Year</p>
+                </div>
+
+                @if (membership.JoinDate.Year < DateTime.UtcNow.Year)
+                {
+                    <button class="btn btn-warning mt-3" @onclick="@(() => Navigation.NavigateTo("/membership/apply"))">
+                        <i class="bi bi-arrow-repeat"></i> Renew Membership
+                    </button>
+                }
+
+                <a class="btn btn-outline-info mt-3 ms-2" target="_blank" href="/generate-membership-pdf?userId=@membership.UserId">
+                    <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                </a>
+            }
+            else
+            {
+                <p class="text-muted">No active membership record found.</p>
+            }
+        }
+        else
+        {
+            <p class="text-muted">Your session information could not be loaded.</p>
+        }
+
+        <p class="text-muted">Please complete the payment to activate your membership.</p>
+
+        <ul class="list-group list-group-flush text-start mb-3">
+            <li class="list-group-item">
+                ✅ Pay with <strong>Zelle</strong> to: <code>finance@nybafa.org</code>
+            </li>
+            <li class="list-group-item">
+                ✅ Or pay with <strong>PayPal</strong>:
+                <a class="btn btn-outline-secondary btn-sm ms-2" href="https://www.paypal.com/pay?token=0EC87841234572212&ssrt=1747454451741&ul=1" target="_blank">
+                    <i class="bi bi-paypal"></i> PayPal Link
+                </a>
+            </li>
+            <li class="list-group-item">
+                ✅ For help, email: <code>support@nybafa.org</code>
+            </li>
+        </ul>
+
+        <a href="/" class="btn btn-primary">Back to Home</a>
+    </div>
+</div>
+
+@code {
+    private UserModel? user;
+    private MembershipModel? membership;
+
+    protected override async Task OnInitializedAsync()
+    {
+        user = await UserSessionService.GetCurrentUserAsync();
+
+        if (user != null)
+        {
+            membership = await DbContext.Memberships
+                .Where(m => m.UserId == user.UserId)
+                .OrderByDescending(m => m.Year)
+                .FirstOrDefaultAsync();
+        }
+    }
+}

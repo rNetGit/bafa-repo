@@ -1,0 +1,199 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Authorization
+@using BafaMobile.Services
+@inject NavigationManager Navigation
+
+@* @inject UserSessionService SessionService *@
+@inject AuthenticationStateProvider AuthProvider
+
+@* <h3>Welcome, @SessionService.Email</h3> *@
+
+Username : @username
+
+
+
+
+<div class="container p-3">
+
+    <!-- Header -->
+    <div class="text-center mt-4">
+        <img src="Images\nybafalogo.png" style="max-width: 180px;" />
+
+        <p class="text-muted">Bangladeshi American Foundation of Albany</p>
+    </div>
+@*     <p>Welcome, @SessionService.Email!</p> 
+    @if (SessionService.IsLoggedIn)
+    {
+        <p>Welcome, @SessionService.Email!</p>
+    }
+    else
+    {
+        <p>Please log in to access this page.</p>
+    } *@
+    <!-- Welcome Section -->
+    <div class="card shadow-sm p-3 mt-3">
+        <h5 class="fw-bold">Welcome! @username</h5>
+        <p>Connect with the Bangladeshi community in Albany. Renew your membership, register for events, and support our cause.</p>
+
+         @if (isAuthenticated == "0")
+        {
+
+        <NavLink href="/account" class="btn btn-success w-100">
+            Sign In / Create Account
+        </NavLink> 
+        @*         <button class="btn btn-success w-100" onclick="">Sign In / Create Account</button> *@
+
+
+       } 
+
+
+
+    </div>
+@* 
+    @if (isAuthenticated == "1")
+        {
+ *@
+    <!-- Navigation Buttons -->
+    <div class="row text-center mt-4">
+        <div class="col-6 mb-2">
+
+            <a href="membership" class="btn btn-outline-secondary w-100">
+                <span class="bi bi-person-badge"> </span><br />Join/Renew</a>
+
+        </div>
+        <div class="col-6 mb-2">
+            <a href="donate" class="btn btn-outline-secondary w-100">
+                <span class="bi bi-heart-fill"> </span><br />Donate
+            </a>
+        </div>
+        <div class="col-6 mb-2">
+            <a href="admin" class="btn btn-outline-secondary w-100">Media</a>
+        </div>
+        <div class="col-6 mb-2">
+            <a href="board" class="btn btn-outline-secondary w-100">Board of Directors</a>
+        </div>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="fw-bold">Upcoming Events</h5>
+            <a href="events" class="text-decoration-none">View all &rarr;</a>
+        </div>
+
+        @foreach (var evt in upcomingEvents)
+        {
+            <div class="card mb-2 p-2 shadow-sm">
+                <div class="d-flex align-items-center">
+                    <div class="text-center bg-light rounded p-2 me-3" style="min-width: 70px;">
+                        <div class="fw-bold">@evt.ShortDate</div>
+                        <div class="small">@evt.FullDate.ToString("MM/dd/yyyy")</div>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">@evt.Title</h6>
+                        <div class="text-muted small">@evt.Location</div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Latest Updates -->
+    <div class="card p-3 mt-4 shadow-sm">
+        <h6 class="fw-bold">Latest Updates</h6>
+        <p class="text-muted small">
+            The executive committee has announced new community programs for this year. Check the resources section for details.
+        </p>
+        <a href="resources" class="btn btn-outline-primary btn-sm">Learn More</a>
+    </div>
+
+   @*  } *@
+</div>
+
+<!-- Mobile Footer Navigation -->
+<nav class="navbar fixed-bottom navbar-light bg-white border-top shadow-sm">
+    <div class="container d-flex justify-content-around">
+        <a class="text-center text-dark" href="/">
+            <div><i class="bi bi-house-door-fill"></i></div>
+            <small>Home</small>
+        </a>
+        <a class="text-center text-dark" href="events">
+            <div><i class="bi bi-calendar-event"></i></div>
+            <small>Events</small>
+        </a>
+        <a class="text-center text-dark" href="membership">
+            <div><i class="bi bi-person-badge"></i></div>
+            <small>Membership</small>
+        </a>
+        <a class="text-center text-dark" href="donate">
+            <div><i class="bi bi-heart-fill"></i></div>
+            <small>Donate</small>
+        </a>
+        <a class="text-center text-dark" href="admin">
+            <div><i class="bi bi-gear-fill"></i></div>
+            <small>Admin</small>
+        </a>
+    </div>
+</nav>
+
+@code {
+    private string? email;
+
+    protected override void OnInitialized()
+    {
+        // //isAuthenticated = HttpContextAccessor.HttpContext.Session.GetString("IsAuthenticated");
+        // if (isAuthenticated == "1")
+        // {
+        //     username = HttpContextAccessor.HttpContext.Session.GetString("Username");
+        // }
+        // else
+        // {
+        //     username = "Guest";
+        // }
+       // email = SessionService.Email;
+    }
+    public class EventItem
+    {
+        public string Title { get; set; }
+        public DateTime FullDate { get; set; }
+        public string Location { get; set; }
+        public string ShortDate => FullDate.ToString("MMM dd");
+    }
+
+    private List<EventItem> upcomingEvents = new()
+    {
+        new EventItem { Title = "Buddha Purnima", FullDate = new DateTime(2025, 5, 11), Location = "Home" },
+        new EventItem { Title = "Ashura", FullDate = new DateTime(2025, 7, 6), Location = "Home" },
+        new EventItem { Title = "Eid ul-Adha-Holiday", FullDate = new DateTime(2025, 6, 5), Location = "Home" }
+    };
+
+    [Inject] AuthenticationStateProvider AuthStateProvider { get; set; }
+
+    [Inject]
+    private IHttpContextAccessor HttpContextAccessor { get; set; }
+
+    string username = "";
+    string isAuthenticated = "0";
+
+    //  protected override void OnInitialized()
+    //  {
+
+        
+
+    // //     // if(! string.IsNullOrEmpty(_httpContextAccessor.HttpContext?.Session.GetString("Username")) && 
+    // //     // (_httpContextAccessor.HttpContext?.Session.GetString("Username")) != null)
+    // //     // {
+    // //     // username =  _httpContextAccessor.HttpContext?.Session.GetString("Username");
+    // //     // isAuthenticated = _httpContextAccessor.HttpContext?.Session.GetString("IsAuthenticated");
+    // //     //     }
+
+    //  }
+
+    private void Logout()
+     {
+         ((CustomAuthProvider)AuthStateProvider).SignOut();
+      //  Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+        Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+    }
+
+}

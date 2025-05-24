@@ -1,0 +1,47 @@
+﻿@using BafaMobile.Models
+@using BafaMobile.Services
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+
+<nav class="navbar fixed-bottom navbar-light bg-white border-top shadow-sm">
+    <div class="container d-flex justify-content-around">
+        <a class="text-center text-dark" href="">
+            <div><i class="bi bi-house-door-fill"></i></div>
+            <small>Home</small>
+        </a>
+
+        <a class="text-center text-dark" href="events">
+            <div><i class="bi bi-calendar-event"></i></div>
+            <small>Events</small>
+        </a>
+        <a class="text-center text-dark" href="members">
+            <div><i class="bi bi-person-badge"></i></div>
+            <small>Membership</small>
+        </a>
+        <a class="text-center text-dark" href="donate">
+            <div><i class="bi bi-heart-fill"></i></div>
+            <small>Donate</small>
+        </a>
+        <a class="text-center text-dark" href="about">
+            <div><i class="bi bi-info-circle"></i></div>
+            <small>About Us</small>
+        </a>
+        @if (currentUser?.Email == "admin@bafa.org")
+        {
+            <a class="text-center text-dark" href="admin">
+                <div><i class="bi bi-gear-fill"></i></div>
+                <small>Admin</small>
+            </a>
+        }
+
+
+    </div>
+</nav>
+@code {
+    private UserModel? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await UserSessionService.GetCurrentUserAsync();
+    }
+}

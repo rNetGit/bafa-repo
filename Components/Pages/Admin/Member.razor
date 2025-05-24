@@ -1,0 +1,168 @@
+﻿@page "/admin/member"
+@inject BafaDbContext DbContext
+@using BafaMobile.Data
+@using BafaMobile.Models
+@using BafaMobile.Services
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject NavigationManager Navigation
+@using Microsoft.EntityFrameworkCore
+
+<h4 class="fw-bold mt-3 text-center">Membership Admin Panel</h4>
+
+<div class="card p-3 shadow-sm mt-3">
+    <div class="row mb-3">
+@*         <div class="col-md-3">
+            <label class="form-label">Filter by Year</label>
+             <InputText class="form-control" @bind-Value="filterYear" /
+
+        </div> *@
+        <div class="col-md-3">
+            <label class="form-label">Filter by Year</label>
+            <InputSelect class="form-control" @bind-Value="filterYear">
+                <option value="">All</option>
+                @foreach (var y in availableYears)
+                {
+                    <option value="@y">@y</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Status</label>
+            <InputSelect class="form-control" @bind-Value="filterStatus">
+                <option value="">All</option>
+                <option value="Pending">Pending</option>
+                <option value="Active">Active</option>
+            </InputSelect>
+        </div>
+        <div class="col-md-3 align-self-end">
+            <button class="btn btn-primary w-100" @onclick="LoadMembers">Apply Filter</button>
+        </div>
+    </div>
+
+    <table class="table table-bordered table-striped table-sm">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Fee</th>
+                <th>Paid</th>
+                <th>PayMode</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var m in members)
+            {
+                <tr>
+                    <td>@m.FirstName @m.LastName</td>
+                    <td>@m.MembershipType</td>               
+                    <td>
+                        @if (m.MembershipStatus == "Pending")
+                        {
+                            <select class="form-select form-select-sm" @bind="m.MembershipStatus">
+                                <option>Pending</option>
+                                <option>Active</option>
+                            </select>
+                        }
+                        else
+                        {
+                            @m.MembershipStatus
+                        }
+                    </td>
+                    <td>
+                        <InputText class="form-control form-control-sm" @bind-Value="@m.MembershipFee" />
+                    </td>
+                    <td>
+                        <input type="checkbox" class="form-check-input" @bind="m.IsPaid" />
+                    </td>
+                    <td>
+                        <InputText class="form-control form-control-sm" @bind-Value="m.PayMode" />
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-success" @onclick="() => SaveMember(m)">
+                            Save
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<MembershipModel> members = new();
+    private List<string> availableYears = new();
+    private string filterYear = DateTime.UtcNow.Year.ToString();
+    private string? filterStatus = "";
+    
+   
+    protected override async Task OnInitializedAsync()
+    {
+        var currentUser = await UserSessionService.GetCurrentUserAsync();
+        if (currentUser?.Email != "admin@bafa.org")
+        {
+            Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            return;
+        }
+        // Dynamically load available years from existing membership records
+        availableYears = await DbContext.Memberships
+            .Select(m => m.Year)
+            .Distinct()
+            .OrderByDescending(y => y)
+            .ToListAsync();
+
+        await LoadMembers();
+    }
+
+    private async Task LoadMembers()
+    {
+        var query = DbContext.Memberships.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filterYear))
+        {
+            query = query.Where(m => m.Year == filterYear);
+        }
+
+
+        if (!string.IsNullOrEmpty(filterStatus))
+        {
+            query = query.Where(m => m.MembershipStatus == filterStatus);
+        }
+        try
+        {
+        members = await query
+            .OrderByDescending(m => m.SubmittedOn)
+            .Take(100)
+            .ToListAsync();
+
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("Error saving membership: " + ex.Message);
+        }
+}
+
+    private async Task SaveMember(MembershipModel m)
+    {
+        var record = await DbContext.Memberships.FindAsync(m.Id);
+        if (record != null)
+        {
+        try
+            {
+            record.MembershipStatus = m.MembershipStatus;
+            record.IsPaid = m.IsPaid;
+            record.MembershipFee = m.MembershipFee;
+            record.PayMode = m.PayMode;
+            record.PaymentStatus = m.IsPaid ? "Paid" : "Unpaid";
+            await DbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+            Console.Error.WriteLine("Error saving membership: " + ex.Message);
+            }
+        }
+    }
+}

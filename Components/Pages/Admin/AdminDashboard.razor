@@ -1,0 +1,201 @@
+﻿@page "/admin"
+@attribute [Authorize]
+@using BafaMobile.Models
+@using BafaMobile.Services
+@inject UserSessionService SessionService
+@inject IUserSessionService UserSessionService
+@inject NavigationManager Navigation
+@using BafaMobile.Data
+@using Microsoft.EntityFrameworkCore
+@inject BafaDbContext DbContext
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<h4 class="fw-bold text-center mt-4">Admin Dashboard</h4>
+
+<div class="row text-center mt-4">
+    <div class="col-md-3">
+        <a class="btn btn-outline-primary w-100" href="/bafa.app/admin/member">
+            <i class="bi bi-people-fill"></i> Members
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a class="btn btn-outline-success w-100" href="/bafa.app/admin/admevents">
+            <i class="bi bi-calendar-event"></i> Events
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a class="btn btn-outline-warning w-100" href="/bafa.app/admin/admdonations">
+            <i class="bi bi-cash-stack"></i> Donations
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a class="btn btn-outline-dark w-100" href="/bafa.app/admin/admbd">
+            <i class="bi bi-diagram-3-fill"></i> Board
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Membership Stats - @currentYear</h5>
+    </div>
+    <div class="card-body">
+        <div style="height: 300px;">
+            <canvas id="membershipBarChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">Event Registrations - @currentYear</h5>
+    </div>
+    <div class="card-body">
+        <div style="height: 300px;">
+            <canvas id="eventDonutChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0">Payments by Purpose - @currentYear</h5>
+    </div>
+    <div class="card-body">
+        <div style="height: 300px;">
+            <canvas id="paymentPieChart"></canvas>
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserModel? currentUser;
+    private int currentYear = DateTime.Now.Year;
+    private Dictionary<string, int> stats = new();
+    private Dictionary<string, double> feeStats = new();
+    private bool chartInitialized = false;
+    private List<MembershipModel> memberships = new();
+    private List<string> eventNames = new();
+    private List<int> eventRegistrationCounts = new();
+    private List<string> paymentPurposes = new();
+    private List<double> paymentAmounts = new();
+    private bool isDisposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await UserSessionService.GetCurrentUserAsync();
+
+        if (currentUser?.Email != "admin@bafa.org")
+        {
+           // Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+            return;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            // Membership stats (JoinDate is DateTime)
+            memberships = await DbContext.Memberships
+                .Where(m => m.JoinDate.Year == currentYear)
+                .ToListAsync();
+
+            stats = memberships
+                .GroupBy(m => $"{m.MembershipType ?? "Unknown"} - {m.MembershipStatus ?? "Unknown"}")
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            feeStats = memberships
+                .GroupBy(m => $"{m.MembershipType ?? "Unknown"} - {m.MembershipStatus ?? "Unknown"}")
+                .ToDictionary(g => g.Key,
+                              g => g.Sum(m => double.TryParse(m.MembershipFee, out var fee) ? fee : 0.0));
+
+            // Event registrations (EventDate is DateTime)
+            var allEvents = await DbContext.Events.ToListAsync();
+            var currentYearEvents = allEvents
+                .Where(e => e.EventDate.Year == currentYear)
+                .ToList();
+
+            var eventIds = currentYearEvents.Select(e => e.Id).ToList();
+
+            // Fetch all registrations and filter by year and event id in memory (RegisteredOn is DateTime)
+            var allRegistrations = await DbContext.EventRegistrations.ToListAsync();
+            var registrations = allRegistrations
+                .Where(r => r.RegisteredOn.Year == currentYear && eventIds.Contains(r.EventId))
+                .ToList();
+
+            eventNames = currentYearEvents.Select(e => e.Name).ToList();
+            eventRegistrationCounts = currentYearEvents
+                .Select(e => registrations.Count(r => r.EventId == e.Id))
+                .ToList();
+
+            // PaymentIntents pie chart (CreatedOn is string)
+            var allPayments = await DbContext.PaymentIntents.ToListAsync();
+            var currentYearPayments = allPayments
+                .Where(p => !string.IsNullOrWhiteSpace(p.CreatedOn) && 
+                           DateTime.TryParse(p.CreatedOn, out var paymentDate) && 
+                           paymentDate.Year == currentYear)
+                .ToList();
+
+            paymentPurposes = currentYearPayments
+                .GroupBy(p => p.Purpose ?? "Unknown")
+                .Select(g => g.Key)
+                .ToList();
+
+            paymentAmounts = currentYearPayments
+                .GroupBy(p => p.Purpose ?? "Unknown")
+                .Select(g => (double)g.Sum(x => x.Amount))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!isDisposed)
+        {
+            if (!chartInitialized && stats.Any() && feeStats.Any())
+            {
+                chartInitialized = true;
+                await JSRuntime.InvokeVoidAsync("renderMembershipBarChart", stats.Keys.ToArray(), stats.Values.ToArray(), feeStats.Values.ToArray());
+            }
+
+            if (firstRender && eventNames.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("renderEventDonutChart", eventNames.ToArray(), eventRegistrationCounts.ToArray());
+            }
+
+            if (firstRender && paymentPurposes.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("renderPaymentPieChart", paymentPurposes.ToArray(), paymentAmounts.ToArray());
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!isDisposed)
+        {
+            isDisposed = true;
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("cleanupAllCharts");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit is already disconnected, no need to cleanup
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during cleanup: {ex.Message}");
+            }
+        }
+    }
+}
