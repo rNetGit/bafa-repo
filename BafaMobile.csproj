@@ -4,7 +4,6 @@
     <TargetFramework>net9.0</TargetFramework>
 	<RuntimeIdentifier>linux-x64</RuntimeIdentifier> <!-- change to linux-x64,win-x64 osx-x64, etc. -->
     <SelfContained>true</SelfContained>
-    <PublishTrimmed>true</PublishTrimmed> <!-- Optional: reduces size -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ServerGarbageCollection>true</ServerGarbageCollection>
