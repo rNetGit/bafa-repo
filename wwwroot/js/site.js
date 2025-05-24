@@ -13,3 +13,15 @@ window.cleanupHomePageWidgets = () => {
     // Example: unbind anything you attach
     // window.removeEventListener("scroll", ...);
 };
+
+window.tryShareEvent = async function (shareData) {
+    if (navigator.share) {
+        try {
+            await navigator.share(shareData);
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+    return false;
+};

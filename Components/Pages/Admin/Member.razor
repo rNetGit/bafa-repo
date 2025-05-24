@@ -8,7 +8,36 @@
 @inject NavigationManager Navigation
 @using Microsoft.EntityFrameworkCore
 
-<h4 class="fw-bold mt-3 text-center">Membership Admin Panel</h4>
+<h4 class="fw-bold text-center mt-4">Membership Admin</h4>
+
+<div class="container mt-4">
+    <div class="row justify-content-center g-3">
+        <div class="col-md-4 col-lg-3">
+            <a class="btn btn-outline-primary w-100 py-3" href="admin">
+                <i class="bi bi-people-fill fs-4 d-block mb-2"></i>
+                <span class="fs-5">Admin</span>
+            </a>
+        </div>
+        <div class="col-md-4 col-lg-3">
+            <a class="btn btn-outline-success w-100 py-3" href="/admin/admevents">
+                <i class="bi bi-calendar-event fs-4 d-block mb-2"></i>
+                <span class="fs-5">Events</span>
+            </a>
+        </div>
+        <div class="col-md-4 col-lg-3">
+            <a class="btn btn-outline-warning w-100 py-3" href="/admin/admdonations">
+                <i class="bi bi-cash-stack fs-4 d-block mb-2"></i>
+                <span class="fs-5">Donations</span>
+            </a>
+        </div>
+        <div class="col-md-4 col-lg-3">
+            <a class="btn btn-outline-dark w-100 py-3" href="/admin/admbd">
+                <i class="bi bi-diagram-3-fill fs-4 d-block mb-2"></i>
+                <span class="fs-5">Board</span>
+            </a>
+        </div>
+    </div>
+</div>
 
 <div class="card p-3 shadow-sm mt-3">
     <div class="row mb-3">

@@ -1,18 +1,11 @@
 window.cleanupAllCharts = () => {
     try {
-        if (window.membershipBarChart) {
-            window.membershipBarChart.destroy();
-            window.membershipBarChart = null;
+        const canvas = document.getElementById('membershipBarChart');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-        if (window.eventDonutChartInstance) {
-            window.eventDonutChartInstance.destroy();
-            window.eventDonutChartInstance = null;
-        }
-        if (window.paymentPieChartInstance) {
-            window.paymentPieChartInstance.destroy();
-            window.paymentPieChartInstance = null;
-        }
-        console.log('All charts cleaned up');
+        console.log('Charts cleaned up');
         return true;
     } catch (error) {
         console.error('Error cleaning up charts:', error);
@@ -44,18 +37,22 @@ if (typeof window.confirm !== 'function') {
 
 window.renderMembershipBarChart = (labels, countsData, feesData) => {
     try {
-        const ctx = document.getElementById('membershipBarChart')?.getContext('2d');
-        if (!ctx) {
-            console.error('Could not find membershipBarChart canvas element');
+        console.log('renderMembershipBarChart called with:', { labels, countsData });
+        
+        const canvas = document.getElementById('membershipBarChart');
+        if (!canvas) {
+            console.error('Could not find #membershipBarChart element');
             return false;
         }
 
-        if (window.membershipBarChart) {
-            window.membershipBarChart.destroy();
-            window.membershipBarChart = null;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error('Could not get 2D context from canvas');
+            return false;
         }
 
-        window.membershipBarChart = new Chart(ctx, {
+        // Create new chart instance
+        new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
@@ -65,16 +62,7 @@ window.renderMembershipBarChart = (labels, countsData, feesData) => {
                         data: countsData,
                         backgroundColor: 'rgba(54, 162, 235, 0.6)',
                         borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1,
-                        yAxisID: 'y-count'
-                    },
-                    {
-                        label: 'Membership Fees Total',
-                        data: feesData,
-                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1,
-                        yAxisID: 'y-fee'
+                        borderWidth: 1
                     }
                 ]
             },
@@ -83,38 +71,23 @@ window.renderMembershipBarChart = (labels, countsData, feesData) => {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: true },
-                    title: { display: false }
+                    title: {
+                        display: true,
+                        text: 'Membership Distribution'
+                    }
                 },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Membership Type & Status'
-                        }
-                    },
-                    'y-count': {
-                        type: 'linear',
-                        position: 'left',
-                        beginAtZero: true,
-                        precision: 0,
-                        title: {
-                            display: true,
-                            text: 'Count'
-                        }
-                    },
-                    'y-fee': {
-                        type: 'linear',
-                        position: 'right',
+                    y: {
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: 'Total Fees ($)'
-                        },
-                        grid: { drawOnChartArea: false }
+                            text: 'Number of Members'
+                        }
                     }
                 }
             }
         });
+
         return true;
     } catch (error) {
         console.error('Error rendering membership bar chart:', error);
@@ -237,3 +210,83 @@ window.renderPaymentPieChart = (labels, data) => {
         return false;
     }
 };
+
+window.renderMembershipStackedBarChart = (membershipTypes, statuses, labels, datasets) => {
+    try {
+        console.log('renderMembershipStackedBarChart called with:', { membershipTypes, statuses, labels, datasets });
+        
+        const canvas = document.getElementById('membershipBarChart');
+        if (!canvas) {
+            console.error('Could not find #membershipBarChart element');
+            return false;
+        }
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error('Could not get 2D context from canvas');
+            return false;
+        }
+
+        // Create new chart instance
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: membershipTypes,
+                datasets: labels.map((label, index) => ({
+                    label: label,
+                    data: datasets[index],
+                    backgroundColor: getColorForStatus(label),
+                    borderColor: getColorForStatus(label, 1),
+                    borderWidth: 1
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        display: true,
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Membership Distribution by Type and Status'
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: 'Membership Type'
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Members'
+                        }
+                    }
+                }
+            }
+        });
+
+        return true;
+    } catch (error) {
+        console.error('Error rendering membership stacked bar chart:', error);
+        return false;
+    }
+};
+
+// Helper function to get colors for different statuses
+function getColorForStatus(status, alpha = 0.6) {
+    const colors = {
+        'Active': `rgba(75, 192, 192, ${alpha})`,    // Green
+        'Pending': `rgba(255, 159, 64, ${alpha})`,   // Orange
+        'Expired': `rgba(255, 99, 132, ${alpha})`,   // Red
+        'Unknown': `rgba(201, 203, 207, ${alpha})`   // Gray
+    };
+    return colors[status] || `rgba(54, 162, 235, ${alpha})`; // Default blue
+}

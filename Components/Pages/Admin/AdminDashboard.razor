@@ -13,30 +13,36 @@
 
 <h4 class="fw-bold text-center mt-4">Admin Dashboard</h4>
 
-<div class="row text-center mt-4">
-    <div class="col-md-3">
-        <a class="btn btn-outline-primary w-100" href="/admin/member">
-            <i class="bi bi-people-fill"></i> Members
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a class="btn btn-outline-success w-100" href="/bafa.app/admin/admevents">
-            <i class="bi bi-calendar-event"></i> Events
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a class="btn btn-outline-warning w-100" href="/bafa.app/admin/admdonations">
-            <i class="bi bi-cash-stack"></i> Donations
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a class="btn btn-outline-dark w-100" href="/bafa.app/admin/admbd">
-            <i class="bi bi-diagram-3-fill"></i> Board
-        </a>
+<div class="container mt-4">
+    <div class="row justify-content-center g-3">
+        <div class="col-md-4 col-lg-3">
+            <a class="btn btn-outline-primary w-100 py-3" href="/admin/member">
+                <i class="bi bi-people-fill fs-4 d-block mb-2"></i>
+                <span class="fs-5">Members</span>
+            </a>
+        </div>
+        <div class="col-md-4 col-lg-3">
+            <a class="btn btn-outline-success w-100 py-3" href="/admin/admevents">
+                <i class="bi bi-calendar-event fs-4 d-block mb-2"></i>
+                <span class="fs-5">Events</span>
+            </a>
+        </div>
+        <div class="col-md-4 col-lg-3">
+            <a class="btn btn-outline-warning w-100 py-3" href="/admin/admdonations">
+                <i class="bi bi-cash-stack fs-4 d-block mb-2"></i>
+                <span class="fs-5">Donations</span>
+            </a>
+        </div>
+        <div class="col-md-4 col-lg-3">
+            <a class="btn btn-outline-dark w-100 py-3" href="/admin/admbd">
+                <i class="bi bi-diagram-3-fill fs-4 d-block mb-2"></i>
+                <span class="fs-5">Board</span>
+            </a>
+        </div>
     </div>
 </div>
 
-<div class="card mb-4">
+<div class="card mb-4 mt-4">
     <div class="card-header bg-primary text-white">
         <h5 class="mb-0">Membership Stats - @currentYear</h5>
     </div>
@@ -72,15 +78,13 @@
 @code {
     private UserModel? currentUser;
     private int currentYear = DateTime.Now.Year;
-    private Dictionary<string, int> stats = new();
-    private Dictionary<string, double> feeStats = new();
+    private Dictionary<string, Dictionary<string, int>> membershipStats = new();
     private bool chartInitialized = false;
-    private List<MembershipModel> memberships = new();
+    private bool isDisposed;
     private List<string> eventNames = new();
     private List<int> eventRegistrationCounts = new();
     private List<string> paymentPurposes = new();
     private List<double> paymentAmounts = new();
-    private bool isDisposed;
 
     protected override async Task OnInitializedAsync()
     {
@@ -88,7 +92,6 @@
 
         if (currentUser?.Email != "admin@bafa.org")
         {
-           // Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
             Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
             return;
         }
@@ -100,21 +103,23 @@
     {
         try
         {
-            // Membership stats (JoinDate is DateTime)
-            memberships = await DbContext.Memberships
-                .Where(m => m.JoinDate.Year == currentYear)
+            string currentYearStr = DateTime.Now.Year.ToString();
+
+            // Load membership data
+            var memberships = await DbContext.Memberships
+                .Where(m => m.Year == currentYearStr)
                 .ToListAsync();
 
-            stats = memberships
-                .GroupBy(m => $"{m.MembershipType ?? "Unknown"} - {m.MembershipStatus ?? "Unknown"}")
-                .ToDictionary(g => g.Key, g => g.Count());
+            // Group by MembershipType and MembershipStatus
+            membershipStats = memberships
+                .GroupBy(m => m.MembershipType ?? "Unknown")
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.GroupBy(m => m.MembershipStatus ?? "Unknown")
+                          .ToDictionary(sg => sg.Key, sg => sg.Count())
+                );
 
-            feeStats = memberships
-                .GroupBy(m => $"{m.MembershipType ?? "Unknown"} - {m.MembershipStatus ?? "Unknown"}")
-                .ToDictionary(g => g.Key,
-                              g => g.Sum(m => double.TryParse(m.MembershipFee, out var fee) ? fee : 0.0));
-
-            // Event registrations (EventDate is DateTime)
+            // Load event data
             var allEvents = await DbContext.Events.ToListAsync();
             var currentYearEvents = allEvents
                 .Where(e => e.EventDate.Year == currentYear)
@@ -122,7 +127,7 @@
 
             var eventIds = currentYearEvents.Select(e => e.Id).ToList();
 
-            // Fetch all registrations and filter by year and event id in memory (RegisteredOn is DateTime)
+            // Fetch all registrations and filter by year and event id in memory
             var allRegistrations = await DbContext.EventRegistrations.ToListAsync();
             var registrations = allRegistrations
                 .Where(r => r.RegisteredOn.Year == currentYear && eventIds.Contains(r.EventId))
@@ -133,7 +138,7 @@
                 .Select(e => registrations.Count(r => r.EventId == e.Id))
                 .ToList();
 
-            // PaymentIntents pie chart (CreatedOn is string)
+            // Load payment data
             var allPayments = await DbContext.PaymentIntents.ToListAsync();
             var currentYearPayments = allPayments
                 .Where(p => !string.IsNullOrWhiteSpace(p.CreatedOn) && 
@@ -150,6 +155,10 @@
                 .GroupBy(p => p.Purpose ?? "Unknown")
                 .Select(g => (double)g.Sum(x => x.Amount))
                 .ToList();
+
+            Console.WriteLine($"Loaded {membershipStats.Count} membership types");
+            Console.WriteLine($"Loaded {eventNames.Count} events");
+            Console.WriteLine($"Loaded {paymentPurposes.Count} payment purposes");
         }
         catch (Exception ex)
         {
@@ -161,20 +170,49 @@
     {
         if (!isDisposed)
         {
-            if (!chartInitialized && stats.Any() && feeStats.Any())
+            if (!chartInitialized && membershipStats.Any())
             {
                 chartInitialized = true;
-                await JSRuntime.InvokeVoidAsync("renderMembershipBarChart", stats.Keys.ToArray(), stats.Values.ToArray(), feeStats.Values.ToArray());
+                
+                // Prepare data for the membership chart
+                var membershipTypes = membershipStats.Keys.ToArray();
+                var statuses = membershipStats.Values
+                    .SelectMany(d => d.Keys)
+                    .Distinct()
+                    .ToArray();
+
+                var datasets = statuses.Select(status => new
+                {
+                    label = status,
+                    data = membershipTypes.Select(type => 
+                        membershipStats[type].ContainsKey(status) ? membershipStats[type][status] : 0
+                    ).ToArray()
+                }).ToArray();
+
+                await JSRuntime.InvokeVoidAsync("renderMembershipStackedBarChart", 
+                    membershipTypes,
+                    statuses,
+                    datasets.Select(d => d.label).ToArray(),
+                    datasets.Select(d => d.data).ToArray()
+                );
             }
 
+            // Render event chart
             if (firstRender && eventNames.Any())
             {
-                await JSRuntime.InvokeVoidAsync("renderEventDonutChart", eventNames.ToArray(), eventRegistrationCounts.ToArray());
+                await JSRuntime.InvokeVoidAsync("renderEventDonutChart", 
+                    eventNames.ToArray(), 
+                    eventRegistrationCounts.ToArray()
+                );
             }
 
+            // Render payment chart
             if (firstRender && paymentPurposes.Any())
             {
-                await JSRuntime.InvokeVoidAsync("renderPaymentPieChart", paymentPurposes.ToArray(), paymentAmounts.ToArray());
+                await JSRuntime.InvokeVoidAsync("renderPaymentPieChart", 
+                    paymentPurposes.ToArray(), 
+                    paymentAmounts.ToArray()
+                );
             }
         }
     }
