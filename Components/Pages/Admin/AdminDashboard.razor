@@ -155,10 +155,6 @@
                 .GroupBy(p => p.Purpose ?? "Unknown")
                 .Select(g => (double)g.Sum(x => x.Amount))
                 .ToList();
-
-            Console.WriteLine($"Loaded {membershipStats.Count} membership types");
-            Console.WriteLine($"Loaded {eventNames.Count} events");
-            Console.WriteLine($"Loaded {paymentPurposes.Count} payment purposes");
         }
         catch (Exception ex)
         {

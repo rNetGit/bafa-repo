@@ -191,54 +191,25 @@
         {
             var eventUrl = $"{Navigation.BaseUri}events";
             var shareText = $"Join us for {evt.Name} on {evt.EventDate:MMM dd, yyyy} at {evt.Location}. Register now at {eventUrl}";
-
-            // Try sharing using the custom JS wrapper
-            var shared = await JSRuntime.InvokeAsync<bool>("tryShareEvent", new
+            
+            if (await JSRuntime.InvokeAsync<bool>("tryShareEvent", new
             {
                 title = evt.Name,
                 text = shareText,
                 url = eventUrl
-            });
-
-            if (!shared)
+            }))
             {
-                // Fallback if Web Share is not supported or fails
-                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareText);
-                await JSRuntime.InvokeVoidAsync("alert", "Event details copied to clipboard!");
+                // Web Share API was successful
+                return;
             }
+            
+            // Fallback if Web Share is not supported or fails
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareText);
+            await JSRuntime.InvokeVoidAsync("alert", "Event details copied to clipboard!");
         }
         catch (Exception ex)
         {
             await JSRuntime.InvokeVoidAsync("alert", $"Error sharing event: {ex.Message}");
         }
     }
-
-    // private async Task ShareEvent(EventRecord evt)
-    // {
-    //     try
-    //     {
-    //         var eventUrl = $"{Navigation.BaseUri}events";
-    //         var shareText = $"Join us for {evt.Name} on {evt.EventDate:MMM dd, yyyy} at {evt.Location}. Register now at {eventUrl}";
-            
-    //         if (await JSRuntime.InvokeAsync<bool>("navigator.share", new
-    //         {
-    //             title = evt.Name,
-    //             text = shareText,
-    //             url = eventUrl
-    //         }))
-    //         {
-    //             // Web Share API was successful
-    //         }
-    //         else
-    //         {
-    //             // Fallback for browsers that don't support Web Share API
-    //             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareText);
-    //             await JSRuntime.InvokeVoidAsync("alert", "Event details copied to clipboard!");
-    //         }
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         await JSRuntime.InvokeVoidAsync("alert", $"Error sharing event: {ex.Message}");
-    //     }
-    // }
 }

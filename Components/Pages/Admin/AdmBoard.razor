@@ -211,7 +211,6 @@ else
         var user = await UserSessionService.GetCurrentUserAsync();
         if (user?.Email != "admin@bafa.org")
         {
-           // Navigation.NavigateTo("/", true);
             Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
             return;
         }
@@ -234,11 +233,6 @@ else
                 if (result)
                 {
                     isInitialized = true;
-                    Console.WriteLine("JavaScript interop initialized successfully");
-                }
-                else
-                {
-                    Console.WriteLine("Failed to initialize JavaScript interop");
                 }
             }
         }
@@ -257,7 +251,6 @@ else
                 .Distinct()
                 .OrderByDescending(y => y)
                 .ToListAsync();
-            Console.WriteLine($"Loaded {availableYears.Count} years: {string.Join(", ", availableYears)}");
         }
         catch (Exception ex)
         {
@@ -277,12 +270,10 @@ else
                     .OrderBy(b => b.IsAdvisor)
                     .ThenBy(b => b.Order ?? 99)
                     .ToListAsync();
-                Console.WriteLine($"Loaded {boardMembers.Count} board members for year {selectedYear}");
             }
             else
             {
                 boardMembers = new();
-                Console.WriteLine("No year selected, board members list cleared");
             }
         }
         catch (Exception ex)

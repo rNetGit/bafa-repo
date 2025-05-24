@@ -12,7 +12,7 @@
 @inject BafaDbContext Db
 @inject UserManager<AppUser> UserManager
 @inject UserSessionService SessionService
-
+@inject IUserSessionService UserSessionService
 
 <h4 class="fw-bold mt-4">BAFA Account</h4>
 <p>Create an account to manage your membership</p>
@@ -63,6 +63,10 @@
     private LoginModel loginModel = new();
     private RegisterModel registerModel = new();
 
+    private bool isProcessing = false;
+    private string loginError = string.Empty;
+    private string isAuthenticated = "1";
+
     public class LoginModel
     {
         [Required]
@@ -95,30 +99,41 @@
 
     private async Task HandleLogin()
     {
+        if (isProcessing) return;
 
-  
         try
         {
-            var user = await UserManager.FindByEmailAsync(loginModel.Email);
+            isProcessing = true;
+            loginError = string.Empty;
 
+            var user = await UserManager.FindByEmailAsync(loginModel.Email);
             if (user != null && await UserManager.CheckPasswordAsync(user, loginModel.Password))
             {
-            
+                var currentUser = new UserModel
+                {
+                    UserId = user.Id,
+                    FirstName = user.FullName.Split(' ').FirstOrDefault() ?? "",
+                    LastName = user.FullName.Split(' ').Skip(1).FirstOrDefault() ?? "",
+                    Email = user.UserName
+                };
 
-               // Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
-
+                await UserSessionService.SetCurrentUserAsync(currentUser);
                 Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
+                return;
             }
-            else
-            {
-                loginMessage = "Invalid login.";
-                HttpContextAccessor.HttpContext.Session.SetString("IsAuthenticated", "0");
 
-            }
+            loginError = "Invalid credentials. Please try again.";
+            isAuthenticated = "0";
         }
         catch (Exception ex)
         {
-            loginMessage = $"Login error: {ex.Message}";
+            loginError = $"Login error: {ex.Message}";
+            isAuthenticated = "0";
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
         }
     }
    
@@ -152,6 +167,7 @@
     }
 
 }
+
 
 
 

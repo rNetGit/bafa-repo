@@ -11,7 +11,7 @@
 @inject BafaDbContext DbContext
 @inject ILogger<AdmDonations> Logger
 
-<h4 class="fw-bold text-center mt-4">Donoations Admin</h4>
+<h4 class="fw-bold text-center mt-4">Donations Admin</h4>
 
 <div class="container mt-4">
     <div class="row justify-content-center g-3">
@@ -41,7 +41,6 @@
         </div>
     </div>
 </div>
-
 
 <div class="card p-3 shadow-sm mb-4">
     <div class="row g-3">
@@ -81,7 +80,6 @@
                 <tr>
                     <th>Date</th>
                     <th>Donor Name</th>
-                   @*  <th>Email</th> *@
                     <th>Purpose</th>
                     <th>Amount</th>
                     <th>Actions</th>
@@ -97,7 +95,6 @@
                         }
                         <td>@(isParsed ? createdDate.ToShortDateString() : donation.CreatedOn)</td>
                         <td>@donation.User?.FullName</td>
-                      @*   <td>@donation.Email</td> *@
                         <td>@donation.Purpose</td>
                         <td>@donation.Amount.ToString("C")</td>
                         <td>
@@ -178,7 +175,6 @@ else
         var user = await UserSessionService.GetCurrentUserAsync();
         if (user?.Email != "admin@bafa.org")
         {
-           // Navigation.NavigateTo("/", true);
             Navigation.NavigateTo(Navigation.BaseUri, forceLoad: true);
             return;
         }
@@ -191,17 +187,12 @@ else
     {
         try
         {
-            // Get all records first
             var records = await DbContext.PaymentIntents.ToListAsync();
-            
-            // Then extract and sort years in memory
             availableYears = records
                 .Select(p => DateTime.Parse(p.CreatedOn).Year)
                 .Distinct()
                 .OrderByDescending(y => y)
                 .ToList();
-
-            Logger.LogInformation($"Loaded {availableYears.Count} available years");
         }
         catch (Exception ex)
         {
@@ -214,24 +205,15 @@ else
     {
         try
         {
-            // First, let's check if we have any records at all
-            var totalCount = await DbContext.PaymentIntents.CountAsync();
-            Logger.LogInformation($"Total payment intents in database: {totalCount}");
-
-            // Get all records with user data
             var records = await DbContext.PaymentIntents
                 .Include(p => p.User)
                 .ToListAsync();
 
-            Logger.LogInformation($"Retrieved {records.Count} records from database");
-
-            // Apply filters in memory
             var filteredRecords = records.AsEnumerable();
 
             if (!string.IsNullOrEmpty(selectedYear))
             {
                 filteredRecords = filteredRecords.Where(p => p.CreatedOn.StartsWith(selectedYear));
-                Logger.LogInformation($"Filtered by year {selectedYear}");
             }
 
             if (!string.IsNullOrEmpty(lastNameFilter))
@@ -239,33 +221,21 @@ else
                 filteredRecords = filteredRecords.Where(p => 
                     p.User != null && 
                     p.User.FullName.Contains(lastNameFilter, StringComparison.OrdinalIgnoreCase));
-                Logger.LogInformation($"Filtered by last name: {lastNameFilter}");
             }
 
             if (minAmount.HasValue && minAmount.Value > 0)
             {
                 filteredRecords = filteredRecords.Where(p => p.Amount >= minAmount.Value);
-                Logger.LogInformation($"Filtered by min amount: {minAmount}");
             }
 
             if (maxAmount.HasValue && maxAmount.Value > 0)
             {
                 filteredRecords = filteredRecords.Where(p => p.Amount <= maxAmount.Value);
-                Logger.LogInformation($"Filtered by max amount: {maxAmount}");
             }
 
-            // Sort the filtered records
             donations = filteredRecords
                 .OrderByDescending(p => DateTime.Parse(p.CreatedOn))
                 .ToList();
-
-            Logger.LogInformation($"Final filtered count: {donations.Count} records");
-
-            // Log the first few records for debugging
-            foreach (var donation in donations.Take(3))
-            {
-                Logger.LogInformation($"Donation: Id={donation.Id}, Amount={donation.Amount}, CreatedOn={donation.CreatedOn}, UserId={donation.UserId}");
-            }
         }
         catch (Exception ex)
         {
@@ -278,7 +248,6 @@ else
     {
         lastNameFilter = e.Value?.ToString() ?? "";
         
-        // Debounce the filter to avoid too many database queries
         filterTimer?.Dispose();
         filterTimer = new Timer(async _ =>
         {

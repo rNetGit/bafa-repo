@@ -3,11 +3,11 @@
 @using BafaMobile.Models
 @using BafaMobile.Services
 @inject UserSessionService SessionService
-@inject IUserSessionService UserSessionService
 @inject BafaDbContext DbContext
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @using Microsoft.EntityFrameworkCore
+@inject IConfiguration Configuration
 
 <div class="container py-4">
     <!-- Hero Section -->
@@ -15,6 +15,20 @@
         <i class="bi bi-building text-primary display-4 mb-3"></i>
         <h4 class="fw-bold mb-2">About NYBAFA</h4>
         <p class="text-muted">Empowering our community through unity, education, and cultural preservation</p>
+    </div>
+
+    <!-- Non-profit Details Section -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4 text-center">
+                    <i class="bi bi-building-gear text-primary display-6 mb-3"></i>
+                    <h5 class="fw-bold mb-3">Non-profit Organization</h5>
+                    <p class="mb-2">BAFA is a 501(c)(3) Non-profit Organization</p>
+                    <p class="mb-0">EIN: 47-5660177</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row justify-content-center">
@@ -111,7 +125,7 @@
                                     <div class="mb-3">
                                         <i class="bi bi-person-circle text-primary display-4"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-1">John Doe</h6>
+                                    <h6 class="fw-bold mb-1">Tania Manir</h6>
                                     <p class="text-muted small mb-2">President</p>
                                     <p class="small mb-0">Leading our community with vision and dedication</p>
                                 </div>
@@ -123,7 +137,7 @@
                                     <div class="mb-3">
                                         <i class="bi bi-person-circle text-primary display-4"></i>
                                     </div>
-                                    <h6 class="fw-bold mb-1">Jane Smith</h6>
+                                    <h6 class="fw-bold mb-1">Humayun Kabir (junior)</h6>
                                     <p class="text-muted small mb-2">Vice President</p>
                                     <p class="small mb-0">Driving our cultural initiatives forward</p>
                                 </div>
@@ -144,19 +158,19 @@
                         <div class="col-md-6">
                             <div class="d-flex align-items-center text-muted">
                                 <i class="bi bi-geo-alt-fill me-2"></i>
-                                <span>123 Community Street, New York, NY 10001</span>
+                                <span>244 Ontario Street Cohoes, NY 12047</span>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="d-flex align-items-center text-muted">
                                 <i class="bi bi-envelope-fill me-2"></i>
-                                <span>contact@nybafa.org</span>
+                                <span>admin@nybafa.org</span>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="d-flex align-items-center text-muted">
-                                <i class="bi bi-telephone-fill me-2"></i>
-                                <span>(555) 123-4567</span>
+                                <i class="bi bi-globe me-2"></i>
+                                <a href="https://www.nybafa.org/" target="_blank" rel="noopener" class="text-muted text-decoration-none">www.nybafa.org</a>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -169,6 +183,9 @@
                 </div>
             </div>
         </div>
+    </div>
+    <div class="text-center mt-5 mb-3">
+        <p class="text-muted" style="font-size: 0.9rem;">Version: @Configuration["AppSettings:Version"]</p>
     </div>
 </div>
 
@@ -219,8 +236,35 @@
 </style>
 
 @code {
+    private UserModel? currentUser;
+    private bool jsInitialized = false;
+
     protected override async Task OnInitializedAsync()
     {
-        // Initialize any data needed for the about page
+        try
+        {
+            await InitializeJsInterop();
+            currentUser = await SessionService.GetCurrentUserAsync();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error initializing page: {ex.Message}");
+        }
+    }
+
+    private async Task InitializeJsInterop()
+    {
+        if (!jsInitialized)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("initializeBlazorInterop");
+                jsInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error initializing JS interop: {ex.Message}");
+            }
+        }
     }
 } 

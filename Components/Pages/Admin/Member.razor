@@ -41,32 +41,24 @@
 
 <div class="card p-3 shadow-sm mt-3">
     <div class="row mb-3">
-@*         <div class="col-md-3">
-            <label class="form-label">Filter by Year</label>
-             <InputText class="form-control" @bind-Value="filterYear" /
-
-        </div> *@
         <div class="col-md-3">
             <label class="form-label">Filter by Year</label>
-            <InputSelect class="form-control" @bind-Value="filterYear">
-                <option value="">All</option>
-                @foreach (var y in availableYears)
+            <InputSelect class="form-select" @bind-Value="filterYear" @onchange="LoadMembers">
+                <option value="">All Years</option>
+                @foreach (var year in availableYears)
                 {
-                    <option value="@y">@y</option>
+                    <option value="@year">@year</option>
                 }
             </InputSelect>
         </div>
-
         <div class="col-md-3">
-            <label class="form-label">Status</label>
-            <InputSelect class="form-control" @bind-Value="filterStatus">
-                <option value="">All</option>
-                <option value="Pending">Pending</option>
+            <label class="form-label">Filter by Status</label>
+            <InputSelect class="form-select" @bind-Value="filterStatus" @onchange="LoadMembers">
+                <option value="">All Statuses</option>
                 <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Expired">Expired</option>
             </InputSelect>
-        </div>
-        <div class="col-md-3 align-self-end">
-            <button class="btn btn-primary w-100" @onclick="LoadMembers">Apply Filter</button>
         </div>
     </div>
 
@@ -127,7 +119,6 @@
     private string filterYear = DateTime.UtcNow.Year.ToString();
     private string? filterStatus = "";
     
-   
     protected override async Task OnInitializedAsync()
     {
         var currentUser = await UserSessionService.GetCurrentUserAsync();
@@ -155,42 +146,40 @@
             query = query.Where(m => m.Year == filterYear);
         }
 
-
         if (!string.IsNullOrEmpty(filterStatus))
         {
             query = query.Where(m => m.MembershipStatus == filterStatus);
         }
         try
         {
-        members = await query
-            .OrderByDescending(m => m.SubmittedOn)
-            .Take(100)
-            .ToListAsync();
-
+            members = await query
+                .OrderByDescending(m => m.SubmittedOn)
+                .Take(100)
+                .ToListAsync();
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("Error saving membership: " + ex.Message);
+            Console.Error.WriteLine("Error loading members: " + ex.Message);
         }
-}
+    }
 
     private async Task SaveMember(MembershipModel m)
     {
         var record = await DbContext.Memberships.FindAsync(m.Id);
         if (record != null)
         {
-        try
+            try
             {
-            record.MembershipStatus = m.MembershipStatus;
-            record.IsPaid = m.IsPaid;
-            record.MembershipFee = m.MembershipFee;
-            record.PayMode = m.PayMode;
-            record.PaymentStatus = m.IsPaid ? "Paid" : "Unpaid";
-            await DbContext.SaveChangesAsync();
+                record.MembershipStatus = m.MembershipStatus;
+                record.IsPaid = m.IsPaid;
+                record.MembershipFee = m.MembershipFee;
+                record.PayMode = m.PayMode;
+                record.PaymentStatus = m.IsPaid ? "Paid" : "Unpaid";
+                await DbContext.SaveChangesAsync();
             }
             catch (Exception ex)
             {
-            Console.Error.WriteLine("Error saving membership: " + ex.Message);
+                Console.Error.WriteLine("Error saving membership: " + ex.Message);
             }
         }
     }

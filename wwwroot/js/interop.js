@@ -5,7 +5,6 @@ window.cleanupAllCharts = () => {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-        console.log('Charts cleaned up');
         return true;
     } catch (error) {
         console.error('Error cleaning up charts:', error);
@@ -14,14 +13,12 @@ window.cleanupAllCharts = () => {
 };
 
 window.initializeBlazorInterop = () => {
-    console.log('Blazor interop initialized');
     return true;
 };
 
 window.cleanupBlazorInterop = () => {
     try {
         cleanupAllCharts();
-        console.log('Blazor interop cleaned up');
         return true;
     } catch (error) {
         console.error('Error in cleanupBlazorInterop:', error);
@@ -37,8 +34,6 @@ if (typeof window.confirm !== 'function') {
 
 window.renderMembershipBarChart = (labels, countsData, feesData) => {
     try {
-        console.log('renderMembershipBarChart called with:', { labels, countsData });
-        
         const canvas = document.getElementById('membershipBarChart');
         if (!canvas) {
             console.error('Could not find #membershipBarChart element');
@@ -103,12 +98,7 @@ window.renderEventDonutChart = (labels, data) => {
             return false;
         }
 
-        if (window.eventDonutChartInstance) {
-            window.eventDonutChartInstance.destroy();
-            window.eventDonutChartInstance = null;
-        }
-
-        window.eventDonutChartInstance = new Chart(ctx, {
+        new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: labels,
@@ -161,12 +151,7 @@ window.renderPaymentPieChart = (labels, data) => {
             return false;
         }
 
-        if (window.paymentPieChartInstance) {
-            window.paymentPieChartInstance.destroy();
-            window.paymentPieChartInstance = null;
-        }
-
-        window.paymentPieChartInstance = new Chart(ctx, {
+        new Chart(ctx, {
             type: 'pie',
             data: {
                 labels: labels,
@@ -213,8 +198,6 @@ window.renderPaymentPieChart = (labels, data) => {
 
 window.renderMembershipStackedBarChart = (membershipTypes, statuses, labels, datasets) => {
     try {
-        console.log('renderMembershipStackedBarChart called with:', { membershipTypes, statuses, labels, datasets });
-        
         const canvas = document.getElementById('membershipBarChart');
         if (!canvas) {
             console.error('Could not find #membershipBarChart element');

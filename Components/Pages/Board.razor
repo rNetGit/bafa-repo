@@ -3,6 +3,7 @@
 @using BafaMobile.Data
 @using Microsoft.EntityFrameworkCore
 @inject BafaDbContext DbContext
+@inject IJSRuntime JSRuntime
 
 <div class="container py-4">
     <h2 class="text-center mb-4">Board of Directors</h2>
@@ -84,17 +85,27 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Get all years, ordered by most recent first
-        boardYears = await DbContext.BoardMembers
-            .Select(b => b.Year)
-            .Distinct()
-            .OrderByDescending(y => y)
-            .ToListAsync();
+        try
+        {
+            boardYears = await DbContext.BoardMembers
+                .Select(b => b.Year)
+                .Distinct()
+                .OrderByDescending(y => y)
+                .ToListAsync();
 
-        // Get all board members
-        boardMembers = await DbContext.BoardMembers
-            .OrderBy(b => b.IsAdvisor)
-            .ThenBy(b => b.Order ?? 99)
-            .ToListAsync();
+            if (boardYears.Any())
+            {
+                var selectedYear = boardYears.First();
+                boardMembers = await DbContext.BoardMembers
+                    .Where(b => b.Year == selectedYear)
+                    .OrderBy(b => b.IsAdvisor)
+                    .ThenBy(b => b.Order ?? 99)
+                    .ToListAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error loading board members: {ex.Message}");
+        }
     }
 } 

@@ -1,17 +1,11 @@
 ﻿// site.js
 
 window.initializeHomePageWidgets = () => {
-    console.log("✅ JS: Home page widgets initialized.");
-
-    // Example: bind events, scroll behavior, etc.
-    // window.addEventListener("scroll", () => console.log("scrolling..."));
+    // Initialize home page widgets
 };
 
 window.cleanupHomePageWidgets = () => {
-    console.log("🧹 JS: Cleaned up home page events.");
-
-    // Example: unbind anything you attach
-    // window.removeEventListener("scroll", ...);
+    // Clean up home page widgets
 };
 
 window.tryShareEvent = async function (shareData) {
