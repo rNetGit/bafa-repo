@@ -8,36 +8,130 @@
 @inject NavigationManager Navigation
 @using Microsoft.EntityFrameworkCore
 
-<h4 class="fw-bold text-center mt-4">Membership Admin</h4>
-
-<div class="container mt-4">
-    <div class="row justify-content-center g-3">
-        <div class="col-md-4 col-lg-3">
-            <a class="btn btn-outline-primary w-100 py-3" href="admin">
-                <i class="bi bi-people-fill fs-4 d-block mb-2"></i>
-                <span class="fs-5">Admin</span>
-            </a>
-        </div>
-        <div class="col-md-4 col-lg-3">
-            <a class="btn btn-outline-success w-100 py-3" href="/admin/admevents">
-                <i class="bi bi-calendar-event fs-4 d-block mb-2"></i>
-                <span class="fs-5">Events</span>
-            </a>
-        </div>
-        <div class="col-md-4 col-lg-3">
-            <a class="btn btn-outline-warning w-100 py-3" href="/admin/admdonations">
-                <i class="bi bi-cash-stack fs-4 d-block mb-2"></i>
-                <span class="fs-5">Donations</span>
-            </a>
-        </div>
-        <div class="col-md-4 col-lg-3">
-            <a class="btn btn-outline-dark w-100 py-3" href="/admin/admbd">
-                <i class="bi bi-diagram-3-fill fs-4 d-block mb-2"></i>
-                <span class="fs-5">Board</span>
-            </a>
-        </div>
+<div class="container mt-3">
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="admin">
+            <i class="bi bi-shield-lock me-2"></i> Admin
+        </a>
+        <a class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="/admin/member">
+            <i class="bi bi-people-fill me-2"></i> Members
+        </a>
+        <a class="btn btn-outline-success btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="/admin/admevents">
+            <i class="bi bi-calendar-event me-2"></i> Events
+        </a>
+        <a class="btn btn-outline-warning btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="/admin/admdonations">
+            <i class="bi bi-cash-stack me-2"></i> Donations
+        </a>
+        <a class="btn btn-outline-dark btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="/admin/admbd">
+            <i class="bi bi-diagram-3-fill me-2"></i> Board
+        </a>
     </div>
 </div>
+
+<h4 class="fw-bold text-center mt-4">Membership Admin</h4>
+
+<div class="card p-3 shadow-sm mt-3">
+    <div class="row mb-3 gy-2">
+        <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label">Filter by Year</label>
+            <InputSelect class="form-select" @bind-Value="filterYear" @onchange="LoadMembers">
+                <option value="">All Years</option>
+                @foreach (var year in availableYears)
+                {
+                    <option value="@year">@year</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <label class="form-label">Filter by Status</label>
+            <InputSelect class="form-select" @bind-Value="filterStatus" @onchange="LoadMembers">
+                <option value="">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Expired">Expired</option>
+            </InputSelect>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm align-middle">
+            <thead class="table-light text-center">
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Fee</th>
+                    <th>Paid</th>
+                    <th>PayMode</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in members)
+                {
+                    <tr>
+                        <td>@m.FirstName @m.LastName</td>
+                        <td>@m.MembershipType</td>
+                        <td>
+                            @if (m.MembershipStatus == "Pending")
+                            {
+                                <select class="form-select form-select-sm" @bind="m.MembershipStatus">
+                                    <option>Pending</option>
+                                    <option>Active</option>
+                                </select>
+                            }
+                            else
+                            {
+                                @m.MembershipStatus
+                            }
+                        </td>
+                        <td>
+                            <InputText class="form-control form-control-sm" @bind-Value="@m.MembershipFee" />
+                        </td>
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input" @bind="m.IsPaid" />
+                        </td>
+                        <td>
+                            <InputText class="form-control form-control-sm" @bind-Value="m.PayMode" />
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-success" @onclick="() => ConfirmSave(m)">
+                                Save
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Save Confirmation Modal -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Confirm Save</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to save changes for <strong>@selectedMember?.FirstName @selectedMember?.LastName</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button class="btn btn-success" @onclick="() => SaveConfirmed(selectedMember)">Yes, Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@* <h3 class="fw-bold text-center mt-4">Membership Admin</h3>
+
 
 <div class="card p-3 shadow-sm mt-3">
     <div class="row mb-3">
@@ -112,6 +206,7 @@
         </tbody>
     </table>
 </div>
+*@
 
 @code {
     private List<MembershipModel> members = new();
@@ -183,4 +278,30 @@
             }
         }
     }
+    private bool showModal = false;
+    private MembershipModel? selectedMember;
+
+    private void ConfirmSave(MembershipModel m)
+    {
+        selectedMember = m;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        selectedMember = null;
+    }
+
+    private async Task SaveConfirmed(MembershipModel? m)
+    {
+        showModal = false;
+        if (m != null)
+        {
+            await SaveMember(m);
+            selectedMember = null;
+        }
+    }
+
 }
+ 

@@ -9,38 +9,26 @@
 @inject IJSRuntime JSRuntime
 @inject BafaDbContext DbContext
 
-<h4 class="fw-bold text-center mt-4">Event Admin</h4>
-
-<div class="container mt-4">
-    <div class="row justify-content-center g-3">
-        <div class="col-md-4 col-lg-3">
-            <a class="btn btn-outline-primary w-100 py-3" href="admin">
-                <i class="bi bi-people-fill fs-4 d-block mb-2"></i>
-                <span class="fs-5">Admin</span>
-            </a>
-        </div>
-        <div class="col-md-4 col-lg-3">
-            <a class="btn btn-outline-success w-100 py-3" href="/admin/member">
-                <i class="bi bi-calendar-event fs-4 d-block mb-2"></i>
-                <span class="fs-5">Members</span>
-            </a>
-        </div>
-        <div class="col-md-4 col-lg-3">
-            <a class="btn btn-outline-warning w-100 py-3" href="/admin/admdonations">
-                <i class="bi bi-cash-stack fs-4 d-block mb-2"></i>
-                <span class="fs-5">Donations</span>
-            </a>
-        </div>
-        <div class="col-md-4 col-lg-3">
-            <a class="btn btn-outline-dark w-100 py-3" href="/admin/admbd">
-                <i class="bi bi-diagram-3-fill fs-4 d-block mb-2"></i>
-                <span class="fs-5">Board</span>
-            </a>
-        </div>
+<div class="container mt-3">
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a class="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="admin">
+            <i class="bi bi-shield-lock me-2"></i> Admin
+        </a>
+        <a class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="/admin/member">
+            <i class="bi bi-people-fill me-2"></i> Members
+        </a>
+        <a class="btn btn-outline-success btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="/admin/admevents">
+            <i class="bi bi-calendar-event me-2"></i> Events
+        </a>
+        <a class="btn btn-outline-warning btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="/admin/admdonations">
+            <i class="bi bi-cash-stack me-2"></i> Donations
+        </a>
+        <a class="btn btn-outline-dark btn-sm d-flex align-items-center justify-content-center px-3 py-2" style="min-width: 160px;" href="/admin/admbd">
+            <i class="bi bi-diagram-3-fill me-2"></i> Board
+        </a>
     </div>
 </div>
-
-<h6 class="fw-bold mt-3 text-center">Event Management</h6>
+<h3 class="fw-bold text-center mt-4">Event Admin</h3>
 
 <div class="card p-3 shadow-sm mb-4">
     <div class="row g-3">
@@ -115,7 +103,7 @@
         <thead class="table-light">
             <tr>
                 <th>Name</th>
-                <th>Type</th>
+               @*  <th>Type</th> *@
                 <th>Location</th>
                 <th>Date</th>
         
@@ -130,7 +118,7 @@
                 var isPast = ev.EventDate < DateTime.Today;
                 <tr>
                     <td>@ev.Name</td>
-                    <td>@ev.Type</td>
+                   @*  <td>@ev.Type</td> *@
                     <td>@ev.Location</td>
                     <td>@ev.EventDate.ToShortDateString()</td>
                     <td>@(isPast ? "Inactive" : "Active")</td>

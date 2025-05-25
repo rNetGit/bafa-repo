@@ -3,40 +3,39 @@
 @inject UserSessionService SessionService
 @inject IUserSessionService UserSessionService
 
-<nav class="navbar fixed-bottom navbar-light bg-white border-top shadow-sm">
-    <div class="container d-flex justify-content-around">
-        <a class="text-center text-dark" href="">
-            <div><i class="bi bi-house-door-fill"></i></div>
-            <small>Home</small>
+<nav class="navbar fixed-bottom bg-light border-top shadow-sm">
+    <div class="container d-flex justify-content-around py-2">
+        <a class="text-center text-decoration-none" href="/">
+            <div class="text-primary"><i class="bi bi-house-door-fill fs-5"></i></div>
+            <small class="text-muted">Home</small>
         </a>
-
-        <a class="text-center text-dark" href="events">
-            <div><i class="bi bi-calendar-event"></i></div>
-            <small>Events</small>
+        <a class="text-center text-decoration-none" href="/events">
+            <div class="text-success"><i class="bi bi-calendar-event fs-5"></i></div>
+            <small class="text-muted">Events</small>
         </a>
-        <a class="text-center text-dark" href="members">
-            <div><i class="bi bi-person-badge"></i></div>
-            <small>Membership</small>
+        <a class="text-center text-decoration-none" href="/members">
+            <div class="text-info"><i class="bi bi-person-badge fs-5"></i></div>
+            <small class="text-muted">Membership</small>
         </a>
-        <a class="text-center text-dark" href="donate">
-            <div><i class="bi bi-heart-fill"></i></div>
-            <small>Donate</small>
+        <a class="text-center text-decoration-none" href="/donate">
+            <div class="text-danger"><i class="bi bi-heart-fill fs-5"></i></div>
+            <small class="text-muted">Donate</small>
         </a>
-        <a class="text-center text-dark" href="about">
-            <div><i class="bi bi-info-circle"></i></div>
-            <small>About Us</small>
+        <a class="text-center text-decoration-none" href="/about">
+            <div class="text-warning"><i class="bi bi-info-circle fs-5"></i></div>
+            <small class="text-muted">About Us</small>
         </a>
         @if (currentUser?.Email == "admin@bafa.org")
         {
-            <a class="text-center text-dark" href="admin">
-                <div><i class="bi bi-gear-fill"></i></div>
-                <small>Admin</small>
+            <a class="text-center text-decoration-none" href="/admin">
+                <div class="text-dark"><i class="bi bi-gear-fill fs-5"></i></div>
+                <small class="text-muted">Admin</small>
             </a>
         }
-
-
     </div>
 </nav>
+
+
 @code {
     private UserModel? currentUser;
 
