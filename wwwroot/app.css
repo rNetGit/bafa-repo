@@ -75,4 +75,12 @@ h1:focus {
 .social-link:hover img {
         transform: scale(1.1);
 }
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+.content {
+    padding-bottom: 2rem; /* extra space above footer if needed */
+}
 
