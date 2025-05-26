@@ -133,4 +133,46 @@ html, body {
         background-color: rgba(0, 0, 0, 0.9);
     }
 
+/* Optional: prevents interaction if visible form isn't fully displayed */
+.card[hidden], .card[style*='display: none'] {
+    display: none !important;
+    pointer-events: none;
+}
 
+.card {
+    position: relative;
+}
+/*.carousel-control-prev,
+.carousel-control-next {
+    z-index: 5;
+}*/
+
+.custom-carousel-control {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4rem;
+    height: 4rem;
+    background: none;
+    border: none;
+    z-index: 2;
+}
+
+.carousel-circle {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 0.75rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.carousel-control-prev {
+    left: 1rem;
+}
+
+.carousel-control-next {
+    right: 1rem;
+}
